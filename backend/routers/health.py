@@ -20,12 +20,10 @@ async def health(request: Request):
 
 @router.get("/api/stats")
 async def stats(request: Request):
-    from database import get_volunteers, get_senior_citizens, get_requests, get_emergency_records
-    import aiosqlite, os
-    from pathlib import Path
+    from database import get_volunteers, get_senior_citizens, get_requests, get_emergency_records, DB_PATH
+    import aiosqlite
 
-    db_path = os.environ.get("DB_PATH") or str(Path(__file__).parent.parent / ".." / "database" / "sahayak.db")
-    async with aiosqlite.connect(db_path) as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         volunteers       = await get_volunteers(db)
         senior_citizens  = await get_senior_citizens(db)
         requests         = await get_requests(db)

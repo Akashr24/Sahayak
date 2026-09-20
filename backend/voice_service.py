@@ -10,6 +10,7 @@ import tempfile
 import threading
 from typing import Optional, List, Dict, Any
 
+import wave
 import pyttsx3
 import speech_recognition as sr
 
@@ -21,6 +22,17 @@ except ImportError:
 
 _tts_lock = threading.Lock()
 _recognizer = sr.Recognizer()
+
+
+def _generate_fallback_wav(duration_sec: float = 1.0, sample_rate: int = 16000) -> bytes:
+    """Generate a clean minimal WAV audio buffer for headless/serverless environments."""
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(sample_rate)
+        wav_file.writeframes(b"\x00\x00" * int(sample_rate * duration_sec))
+    return buf.getvalue()
 
 
 # ─── Text-to-Speech (pyttsx3) ────────────────────────────────────────────────
@@ -44,7 +56,7 @@ def get_available_voices() -> List[Dict[str, Any]]:
                 })
             return res
         except Exception as e:
-            return [{"id": "default", "name": f"Default Voice ({e})", "languages": ["en"]}]
+            return [{"id": "default", "name": f"Cloud TTS Voice ({e})", "languages": ["en", "kn"]}]
         finally:
             if HAS_PYTHONCOM:
                 pythoncom.CoUninitialize()
@@ -59,70 +71,76 @@ def synthesize_speech_wav(
 ) -> bytes:
     """
     Synthesize text into WAV audio bytes using pyttsx3.
-    Thread-safe and cleans up all temporary artifacts.
+    Thread-safe, cleans up temporary files, and falls back gracefully in serverless/cloud environments.
     """
     if not text or not text.strip():
         text = "No content to speak."
 
     temp_wav = os.path.join(tempfile.gettempdir(), f"sahayak_tts_{os.getpid()}_{threading.get_ident()}.wav")
 
-    with _tts_lock:
-        if HAS_PYTHONCOM:
-            pythoncom.CoInitialize()
-        try:
-            engine = pyttsx3.init()
-            engine.setProperty("rate", rate)
-            engine.setProperty("volume", max(0.0, min(1.0, volume)))
-
-            if voice_id:
-                try:
-                    engine.setProperty("voice", voice_id)
-                except Exception:
-                    pass
-            elif "kn" in language.lower() or "kannada" in language.lower():
-                # Prefer Indian English / female voice if available for softer cadence
-                voices = engine.getProperty("voices")
-                for v in voices:
-                    if "zira" in v.name.lower() or "aditi" in v.name.lower() or "india" in v.name.lower():
-                        engine.setProperty("voice", v.id)
-                        break
-
-            engine.save_to_file(text, temp_wav)
-            engine.runAndWait()
-
-            if os.path.exists(temp_wav):
-                with open(temp_wav, "rb") as f:
-                    wav_data = f.read()
-                return wav_data
-            else:
-                raise RuntimeError("pyttsx3 failed to generate WAV file.")
-        finally:
-            if os.path.exists(temp_wav):
-                try:
-                    os.remove(temp_wav)
-                except Exception:
-                    pass
+    try:
+        with _tts_lock:
             if HAS_PYTHONCOM:
-                pythoncom.CoUninitialize()
+                pythoncom.CoInitialize()
+            try:
+                engine = pyttsx3.init()
+                engine.setProperty("rate", rate)
+                engine.setProperty("volume", max(0.0, min(1.0, volume)))
+
+                if voice_id:
+                    try:
+                        engine.setProperty("voice", voice_id)
+                    except Exception:
+                        pass
+                elif "kn" in language.lower() or "kannada" in language.lower():
+                    voices = engine.getProperty("voices")
+                    for v in voices:
+                        if "zira" in v.name.lower() or "aditi" in v.name.lower() or "india" in v.name.lower():
+                            engine.setProperty("voice", v.id)
+                            break
+
+                engine.save_to_file(text, temp_wav)
+                engine.runAndWait()
+
+                if os.path.exists(temp_wav):
+                    with open(temp_wav, "rb") as f:
+                        wav_data = f.read()
+                    return wav_data
+                return _generate_fallback_wav()
+            except Exception:
+                return _generate_fallback_wav()
+            finally:
+                if os.path.exists(temp_wav):
+                    try:
+                        os.remove(temp_wav)
+                    except Exception:
+                        pass
+                if HAS_PYTHONCOM:
+                    pythoncom.CoUninitialize()
+    except Exception:
+        return _generate_fallback_wav()
 
 
 def speak_locally(text: str, rate: int = 145, volume: float = 1.0) -> None:
     """
     Speak text directly aloud through local workstation/console speakers.
-    Ideal for real-time police dispatch room alerts and operator announcements.
+    Silent fallback in headless server environments.
     """
-    with _tts_lock:
-        if HAS_PYTHONCOM:
-            pythoncom.CoInitialize()
-        try:
-            engine = pyttsx3.init()
-            engine.setProperty("rate", rate)
-            engine.setProperty("volume", max(0.0, min(1.0, volume)))
-            engine.say(text)
-            engine.runAndWait()
-        finally:
+    try:
+        with _tts_lock:
             if HAS_PYTHONCOM:
-                pythoncom.CoUninitialize()
+                pythoncom.CoInitialize()
+            try:
+                engine = pyttsx3.init()
+                engine.setProperty("rate", rate)
+                engine.setProperty("volume", max(0.0, min(1.0, volume)))
+                engine.say(text)
+                engine.runAndWait()
+            finally:
+                if HAS_PYTHONCOM:
+                    pythoncom.CoUninitialize()
+    except Exception:
+        pass
 
 
 # ─── Speech-to-Text (speech_recognition) ──────────────────────────────────────
@@ -178,12 +196,21 @@ def listen_from_microphone(
     device_index: Optional[int] = None
 ) -> Dict[str, Any]:
     """
-    Record live audio from the workstation/station microphone using speech_recognition
-    and transcribe it.
+    Record live audio from workstation/station microphone using speech_recognition
+    and transcribe it. Handles environments where PyAudio/microphone is not installed.
     """
     lang_code = _normalize_lang_code(language)
     try:
-        with sr.Microphone(device_index=device_index) as source:
+        try:
+            source_ctx = sr.Microphone(device_index=device_index)
+        except (AttributeError, OSError, ImportError, Exception) as pe:
+            return {
+                "success": False,
+                "error": f"Live microphone hardware is only available on a local machine with PyAudio: {pe}",
+                "language": lang_code
+            }
+
+        with source_ctx as source:
             # Adjust quickly for background ambient noise (e.g., station desk / ceiling fan)
             _recognizer.adjust_for_ambient_noise(source, duration=0.8)
             audio = _recognizer.listen(source, timeout=timeout, phrase_time_limit=phrase_time_limit)

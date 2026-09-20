@@ -68,4 +68,6 @@ tts_audio/
 !package-lock.json
 !frontend/package.json
 !frontend/package-lock.json
+!vercel.json
+!backend/vercel.json
 !database/schema.sql

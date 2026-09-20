@@ -19,7 +19,18 @@ import aiosqlite
 
 # ─── Path resolution ──────────────────────────────────────────────────────────
 _HERE = Path(__file__).parent
-DB_PATH = os.environ.get("DB_PATH") or str(_HERE / ".." / "database" / "sahayak.db")
+_DEFAULT_DB = _HERE / ".." / "database" / "sahayak.db"
+_LOCAL_BACKEND_DB = _HERE / "sahayak.db"
+
+if os.environ.get("VERCEL"):
+    # In Vercel serverless environments, only /tmp is writable
+    DB_PATH = os.environ.get("DB_PATH") or "/tmp/sahayak.db"
+elif os.environ.get("DB_PATH"):
+    DB_PATH = os.environ.get("DB_PATH")
+elif _LOCAL_BACKEND_DB.exists():
+    DB_PATH = str(_LOCAL_BACKEND_DB.resolve())
+else:
+    DB_PATH = str(_DEFAULT_DB.resolve())
 
 # ─── Shirva landmark constants ────────────────────────────────────────────────
 SHIRVA_LOCATIONS = [
@@ -205,6 +216,19 @@ INSERT OR IGNORE INTO audit_logs (id, timestamp, action, actor, details, targetE
 
 # ─── DB Init ──────────────────────────────────────────────────────────────────
 async def init_db() -> None:
+    db_file = Path(DB_PATH)
+    db_file.parent.mkdir(parents=True, exist_ok=True)
+
+    # If running on Vercel and /tmp/sahayak.db doesn't exist yet, copy from bundled sahayak.db if present
+    if os.environ.get("VERCEL") and not db_file.exists():
+        bundled_seed = _HERE / "sahayak.db"
+        if bundled_seed.exists():
+            import shutil
+            try:
+                shutil.copyfile(str(bundled_seed), DB_PATH)
+            except Exception as e:
+                print(f"[DB] Notice: could not copy bundled seed: {e}")
+
     async with aiosqlite.connect(DB_PATH) as db:
         await db.executescript(_INIT_SQL)
         await db.commit()

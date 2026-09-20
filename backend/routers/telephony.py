@@ -62,7 +62,10 @@ DUTY_OFFICER_PHONE   = os.getenv("DUTY_OFFICER_PHONE", "")
 VALIDATE_TWILIO_SIG  = os.getenv("VALIDATE_TWILIO_SIG", "false").lower() == "true"
 
 # Directory where pyttsx3-synthesised WAV files are stored for Twilio to <Play>
-TTS_AUDIO_DIR = Path(__file__).parent.parent / "tts_audio"
+if os.environ.get("VERCEL"):
+    TTS_AUDIO_DIR = Path("/tmp/tts_audio")
+else:
+    TTS_AUDIO_DIR = Path(__file__).parent.parent / "tts_audio"
 TTS_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
 router = APIRouter(tags=["Telephony (Real-World Twilio)"])

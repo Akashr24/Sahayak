@@ -103,7 +103,7 @@ app.include_router(seniors.router,     tags=["Senior Citizens"])
 app.include_router(telephony.router)   # Real-world Twilio telephony
 
 # Serve pyttsx3-synthesised TTS WAVs so Twilio's <Play> can fetch them
-_TTS_AUDIO_DIR = Path(__file__).parent / "tts_audio"
+_TTS_AUDIO_DIR = Path("/tmp/tts_audio") if os.environ.get("VERCEL") else Path(__file__).parent / "tts_audio"
 _TTS_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/tts-audio", StaticFiles(directory=str(_TTS_AUDIO_DIR)), name="tts-audio")
 

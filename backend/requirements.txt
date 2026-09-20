@@ -7,6 +7,5 @@ python-multipart>=0.0.9
 nltk>=3.9.0
 pyttsx3>=2.90
 SpeechRecognition>=3.14.0
-PyAudio>=0.2.14
 twilio>=9.0.0
 python-dotenv>=1.0.0
