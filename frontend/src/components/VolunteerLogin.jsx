@@ -20,6 +20,12 @@ export default function VolunteerLogin({ onLoginSuccess, onCancel }) {
   // Tabs: 'OTP', 'BADGE', 'DEMO', 'REGISTER'
   const [activeTab, setActiveTab] = useState('OTP');
 
+  // Liquid Glass Zoom Scale State
+  const [scaleFactor, setScaleFactor] = useState(1);
+  const handleZoomIn = () => setScaleFactor(prev => Math.min(1.25, +(prev + 0.05).toFixed(2)));
+  const handleZoomOut = () => setScaleFactor(prev => Math.max(0.75, +(prev - 0.05).toFixed(2)));
+  const handleResetZoom = () => setScaleFactor(1);
+
   // OTP Login State
   const [phoneInput, setPhoneInput] = useState('');
   const [otpSent, setOtpSent] = useState(false);
@@ -288,35 +294,75 @@ export default function VolunteerLogin({ onLoginSuccess, onCancel }) {
         zIndex: 1
       }}>
         
-        {/* Main Card Container */}
-        <div className="glass-panel" style={{
-          padding: '36px 32px',
-          background: 'linear-gradient(180deg, rgba(13, 27, 62, 0.95) 0%, rgba(7, 13, 30, 0.98) 100%)',
-          border: '1px solid rgba(16, 185, 129, 0.35)',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(16, 185, 129, 0.15)',
-          borderRadius: '20px'
-        }}>
-          
-          {onCancel && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+        {/* Main Liquid Glass Card Container */}
+        <div 
+          className="liquid-glass liquid-glass-card" 
+          id="glass-card"
+          style={{
+            '--scale-factor': scaleFactor,
+            padding: '36px 32px',
+            borderRadius: '28px',
+            transformOrigin: 'top center',
+            transition: 'transform 200ms ease, box-shadow 300ms ease'
+          }}
+        >
+          {/* Top Card Utilities Toolbar (Zoom Controls & Back Action) */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', position: 'relative', zIndex: 3 }}>
+            <div className="zoom-controls">
+              <button 
+                type="button" 
+                className="zoom-btn" 
+                onClick={handleZoomOut} 
+                title="Decrease Size (-)"
+                disabled={scaleFactor <= 0.75}
+                style={{ opacity: scaleFactor <= 0.75 ? 0.4 : 1 }}
+              >
+                -
+              </button>
               <button
                 type="button"
-                onClick={onCancel}
+                onClick={handleResetZoom}
+                title="Reset Zoom"
                 style={{
                   background: 'transparent',
                   border: 'none',
                   color: '#94a3b8',
-                  fontSize: '0.8rem',
+                  fontSize: '0.75rem',
+                  fontWeight: '600',
                   cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px'
+                  padding: '2px 6px',
+                  borderRadius: '6px'
+                }}
+              >
+                {Math.round(scaleFactor * 100)}%
+              </button>
+              <button 
+                type="button" 
+                className="zoom-btn" 
+                onClick={handleZoomIn} 
+                title="Increase Size (+)"
+                disabled={scaleFactor >= 1.25}
+                style={{ opacity: scaleFactor >= 1.25 ? 0.4 : 1 }}
+              >
+                +
+              </button>
+            </div>
+
+            {onCancel && (
+              <button
+                type="button"
+                className="liquid-glass-btn"
+                onClick={onCancel}
+                style={{
+                  padding: '5px 12px',
+                  fontSize: '0.78rem',
+                  borderRadius: '8px'
                 }}
               >
                 ← Back to Dashboard
               </button>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Top Police Crest & Department Header */}
           <div style={{ textAlign: 'center', marginBottom: '28px' }}>
@@ -677,17 +723,15 @@ export default function VolunteerLogin({ onLoginSuccess, onCancel }) {
               <button
                 type="submit"
                 disabled={otpLoading}
-                className="btn-primary"
+                className="liquid-glass-btn liquid-glass-btn-emerald"
                 style={{
                   width: '100%',
                   padding: '13px 20px',
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                   borderRadius: '12px',
                   fontWeight: '700',
                   fontSize: '0.95rem',
                   justifyContent: 'center',
-                  marginTop: '4px',
-                  boxShadow: '0 4px 16px rgba(16, 185, 129, 0.35)',
+                  marginTop: '6px',
                   cursor: otpLoading ? 'wait' : 'pointer'
                 }}
               >
@@ -762,7 +806,7 @@ export default function VolunteerLogin({ onLoginSuccess, onCancel }) {
               <button
                 type="submit"
                 disabled={badgeLoading}
-                className="btn-police-gold"
+                className="liquid-glass-btn liquid-glass-btn-gold"
                 style={{
                   width: '100%',
                   padding: '13px 20px',
@@ -770,7 +814,8 @@ export default function VolunteerLogin({ onLoginSuccess, onCancel }) {
                   fontWeight: '800',
                   fontSize: '0.95rem',
                   justifyContent: 'center',
-                  marginTop: '4px'
+                  marginTop: '6px',
+                  cursor: badgeLoading ? 'wait' : 'pointer'
                 }}
               >
                 {badgeLoading ? (
@@ -786,97 +831,96 @@ export default function VolunteerLogin({ onLoginSuccess, onCancel }) {
             </form>
           )}
 
-          {/* TAB 3: 1-Click Demo Profiles */}
+          {/* TAB 3: 1-Click Demo Profiles Styled as Liquid Glass Profile Cards */}
           {activeTab === 'DEMO' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '2px' }}>
                 Select a verified persona to test role-based task dispatching and live location tracking:
               </div>
 
-              {demoProfiles.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => handleDemoLogin(p)}
-                  style={{
-                    padding: '12px 14px',
-                    borderRadius: '12px',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)';
-                    e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.35)';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{
-                      width: '42px',
-                      height: '42px',
-                      borderRadius: '50%',
-                      background: p.avatarColor,
-                      color: '#ffffff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: '800',
-                      fontSize: '1.1rem',
-                      boxShadow: '0 4px 10px rgba(0,0,0,0.3)'
-                    }}>
-                      {p.name.charAt(0)}
-                    </div>
-
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <strong style={{ color: '#fff', fontSize: '0.92rem' }}>{p.name}</strong>
-                        {p.status === 'VERIFIED' ? (
-                          <span className="badge-verified" style={{ padding: '1px 6px', fontSize: '0.65rem' }}>
-                            <Shield size={9} /> {p.badge}
-                          </span>
-                        ) : (
-                          <span className="badge-pending" style={{ padding: '1px 6px', fontSize: '0.65rem' }}>
-                            <Clock size={9} /> Pending Police Check
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
-                        <span style={{ color: '#fbbf24' }}>{p.org}</span>
-                        <span>•</span>
-                        <span>{p.location}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '12px' }}>
+                {demoProfiles.map((p) => (
+                  <div
+                    key={p.id}
+                    onClick={() => handleDemoLogin(p)}
+                    className="liquid-glass liquid-glass-card"
                     style={{
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: 'none',
-                      color: '#fff',
-                      padding: '6px 12px',
-                      borderRadius: '8px',
-                      fontSize: '0.75rem',
-                      fontWeight: '700',
-                      cursor: 'pointer',
+                      padding: '20px 16px',
+                      borderRadius: '20px',
                       display: 'flex',
+                      flexDirection: 'column',
                       alignItems: 'center',
-                      gap: '4px'
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      background: 'rgba(13, 27, 62, 0.55)',
+                      border: p.status === 'VERIFIED' ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(255, 255, 255, 0.12)'
                     }}
                   >
-                    Login <ArrowRight size={12} />
-                  </button>
-                </div>
-              ))}
+                    {/* Profile Avatar Border from user design */}
+                    <div className="profile-avatar-border" style={{
+                      width: '60px',
+                      height: '60px',
+                      marginBottom: '8px',
+                      background: p.status === 'VERIFIED' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(255, 255, 255, 0.3)'
+                    }}>
+                      <div style={{
+                        width: '100%',
+                        height: '100%',
+                        borderRadius: '50%',
+                        background: p.avatarColor,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#fff',
+                        fontWeight: '800',
+                        fontSize: '1.2rem',
+                        boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.4)'
+                      }}>
+                        {p.name.charAt(0)}
+                      </div>
+                    </div>
+
+                    {/* Profile Info */}
+                    <div className="profile-info" style={{ width: '100%', marginBottom: '4px' }}>
+                      <h2 style={{ fontSize: '1rem', fontWeight: '700', margin: '0 0 2px 0' }}>{p.name}</h2>
+                      <p style={{ fontSize: '0.72rem', margin: '0 0 8px 0', color: p.status === 'VERIFIED' ? '#34d399' : '#fde047' }}>
+                        {p.badge ? `@${p.badge}` : '@Pending-Vetting'}
+                      </p>
+                    </div>
+
+                    {/* GitHub Stats Grid from user design */}
+                    <div className="github-stats" style={{ width: '100%', gap: '10px', marginBottom: '12px', paddingTop: '8px' }}>
+                      <div className="stat-item">
+                        <span className="stat-value" style={{ fontSize: '0.85rem' }}>{p.status === 'VERIFIED' ? '5.0 ★' : 'New'}</span>
+                        <span className="stat-label">Rating</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-value" style={{ fontSize: '0.85rem' }}>{p.org.split(' ')[0]}</span>
+                        <span className="stat-label">Affiliation</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-value" style={{ fontSize: '0.85rem' }}>{p.status === 'VERIFIED' ? 'Active' : 'Wait'}</span>
+                        <span className="stat-label">Status</span>
+                      </div>
+                    </div>
+
+                    {/* Action Button */}
+                    <button
+                      type="button"
+                      className="github-btn"
+                      style={{
+                        width: '100%',
+                        padding: '7px 14px',
+                        fontSize: '0.78rem',
+                        margin: 0,
+                        justifyContent: 'center'
+                      }}
+                    >
+                      Sign In Persona <ArrowRight size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -982,7 +1026,7 @@ export default function VolunteerLogin({ onLoginSuccess, onCancel }) {
               <button
                 type="submit"
                 disabled={regLoading}
-                className="btn-police-gold"
+                className="liquid-glass-btn liquid-glass-btn-gold"
                 style={{
                   width: '100%',
                   padding: '12px',

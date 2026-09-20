@@ -117,19 +117,19 @@ export default function PoliceCommandCenter({ stats, onDataChanged, onTrackPhone
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
       {/* Header Police Banner */}
-      <div className="glass-panel" style={{ padding: '20px 24px', background: 'linear-gradient(135deg, rgba(13, 27, 62, 0.95) 0%, rgba(7, 13, 30, 0.98) 100%)', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
+      <div className="liquid-glass liquid-glass-card" style={{ padding: '24px 28px', border: '1px solid rgba(234, 179, 8, 0.4)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '16px',
+              width: '58px',
+              height: '58px',
+              borderRadius: '18px',
               background: 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: '#070d1e',
-              boxShadow: '0 4px 18px rgba(234, 179, 8, 0.4)'
+              boxShadow: '0 4px 20px rgba(234, 179, 8, 0.45), inset 0 1px 1px rgba(255,255,255,0.6)'
             }}>
               <Shield size={32} />
             </div>
@@ -153,7 +153,7 @@ export default function PoliceCommandCenter({ stats, onDataChanged, onTrackPhone
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button
               onClick={() => setShowManualSosModal(true)}
-              className="btn-danger animate-siren"
+              className="liquid-glass-btn liquid-glass-btn-danger animate-siren"
               style={{ fontSize: '0.85rem', padding: '10px 18px' }}
             >
               <Siren size={18} /> Trigger 112 SOS Escalation
@@ -161,37 +161,37 @@ export default function PoliceCommandCenter({ stats, onDataChanged, onTrackPhone
 
             <button
               onClick={fetchData}
-              className="btn-outline"
-              style={{ fontSize: '0.85rem' }}
+              className="liquid-glass-btn"
+              style={{ fontSize: '0.85rem', padding: '10px 18px' }}
             >
               Refresh Data
             </button>
           </div>
         </div>
 
-        {/* Quick KPI Stat Counter */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginTop: '20px' }}>
-          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+        {/* Quick KPI Stat Counter with Liquid Glass Panels */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginTop: '22px' }}>
+          <div className="liquid-glass" style={{ padding: '16px 18px', borderRadius: '16px', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Pending Police Verification</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#f59e0b' }}>
+            <div style={{ fontSize: '1.6rem', fontWeight: '800', color: '#f59e0b', marginTop: '4px' }}>
               {volunteers.filter(v => v.verificationStatus === 'PENDING').length}
             </div>
           </div>
-          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="liquid-glass" style={{ padding: '16px 18px', borderRadius: '16px', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Active Verified Volunteers</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#10b981' }}>
+            <div style={{ fontSize: '1.6rem', fontWeight: '800', color: '#10b981', marginTop: '4px' }}>
               {volunteers.filter(v => v.verificationStatus === 'VERIFIED').length}
             </div>
           </div>
-          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="liquid-glass" style={{ padding: '16px 18px', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.35)' }}>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>112 Emergency Escalations</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '800', color: emergencyRequests.length > 0 ? '#ef4444' : '#94a3b8' }}>
+            <div style={{ fontSize: '1.6rem', fontWeight: '800', color: emergencyRequests.length > 0 ? '#ef4444' : '#94a3b8', marginTop: '4px' }}>
               {emergencyRequests.length}
             </div>
           </div>
-          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="liquid-glass" style={{ padding: '16px 18px', borderRadius: '16px', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Total Senior Citizen Cases</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#38bdf8' }}>
+            <div style={{ fontSize: '1.6rem', fontWeight: '800', color: '#38bdf8', marginTop: '4px' }}>
               {requests.length}
             </div>
           </div>

@@ -207,29 +207,37 @@ export default function VolunteerPortal({ onRefreshNeeded }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
       {/* Volunteer Active Profile Header */}
-      <div className="glass-panel" style={{ padding: '20px 24px', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(13, 27, 62, 0.8) 100%)', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+      {/* Volunteer Active Profile Header with Liquid Glass */}
+      <div className="liquid-glass liquid-glass-card" style={{ padding: '24px 28px', border: '1px solid rgba(16, 185, 129, 0.35)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{
-              width: '54px',
-              height: '54px',
-              borderRadius: '50%',
-              background: activeVolunteer?.verificationStatus === 'VERIFIED' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              fontSize: '1.4rem',
-              fontWeight: '700',
-              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)'
+            <div className="profile-avatar-border" style={{
+              width: '62px',
+              height: '62px',
+              margin: 0,
+              background: activeVolunteer?.verificationStatus === 'VERIFIED' ? 'rgba(16, 185, 129, 0.45)' : 'rgba(245, 158, 11, 0.45)'
             }}>
-              {activeVolunteer?.name?.charAt(0) || 'V'}
+              <div style={{
+                width: '100%',
+                height: '100%',
+                borderRadius: '50%',
+                background: activeVolunteer?.verificationStatus === 'VERIFIED' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontSize: '1.4rem',
+                fontWeight: '800',
+                boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.4)'
+              }}>
+                {activeVolunteer?.name?.charAt(0) || 'V'}
+              </div>
             </div>
 
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>
+                <span style={{ fontSize: '1.3rem', fontWeight: '800', color: '#fff' }}>
                   {activeVolunteer?.name}
                 </span>
 
@@ -245,18 +253,18 @@ export default function VolunteerPortal({ onRefreshNeeded }) {
 
                 <span style={{
                   fontSize: '0.72rem',
-                  padding: '2px 8px',
+                  padding: '3px 9px',
                   borderRadius: '6px',
-                  background: activeVolunteer?.isAvailable ? 'rgba(16, 185, 129, 0.2)' : 'rgba(148, 163, 184, 0.2)',
+                  background: activeVolunteer?.isAvailable ? 'rgba(16, 185, 129, 0.25)' : 'rgba(148, 163, 184, 0.25)',
                   color: activeVolunteer?.isAvailable ? '#34d399' : '#94a3b8',
                   fontWeight: '700',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '4px'
+                  gap: '5px'
                 }}>
                   <span style={{
-                    width: '6px',
-                    height: '6px',
+                    width: '7px',
+                    height: '7px',
                     borderRadius: '50%',
                     background: activeVolunteer?.isAvailable ? '#10b981' : '#64748b'
                   }} />

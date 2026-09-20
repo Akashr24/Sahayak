@@ -128,29 +128,30 @@ export default function App() {
         />
       )}
 
-      {/* Top Police Department Masthead */}
-      <header style={{
-        background: 'linear-gradient(180deg, rgba(7, 13, 30, 0.98) 0%, rgba(13, 27, 62, 0.95) 100%)',
-        borderBottom: '1px solid rgba(234, 179, 8, 0.25)',
+      {/* Top Police Department Masthead with Liquid Glass */}
+      <header className="liquid-glass" style={{
+        borderRadius: '0 0 24px 24px',
+        background: 'rgba(7, 13, 30, 0.85)',
+        borderBottom: '1px solid rgba(234, 179, 8, 0.35)',
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        backdropFilter: 'blur(12px)'
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
       }}>
-        <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', position: 'relative', zIndex: 1 }}>
           
           {/* Brand Logo & Title */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div style={{
               width: '46px',
               height: '46px',
-              borderRadius: '12px',
+              borderRadius: '14px',
               background: 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: '#070d1e',
-              boxShadow: '0 4px 14px rgba(234, 179, 8, 0.4)'
+              boxShadow: '0 4px 18px rgba(234, 179, 8, 0.5), inset 0 1px 1px rgba(255,255,255,0.6)'
             }}>
               <Shield size={26} />
             </div>
@@ -170,23 +171,17 @@ export default function App() {
             </div>
           </div>
 
-          {/* Role Navigation Switcher */}
-          <nav style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.4)', padding: '6px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+          {/* Role Navigation Switcher with Liquid Glass Buttons */}
+          <nav className="liquid-glass" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px', borderRadius: '16px', background: 'rgba(0, 0, 0, 0.45)', border: '1px solid rgba(255,255,255,0.1)' }}>
             <button
               onClick={() => setActiveRole('SENIOR_VOICE')}
+              className={activeRole === 'SENIOR_VOICE' ? 'liquid-glass-btn liquid-glass-btn-gold' : 'liquid-glass-btn'}
               style={{
                 padding: '8px 16px',
-                borderRadius: '10px',
-                border: 'none',
-                background: activeRole === 'SENIOR_VOICE' ? 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)' : 'transparent',
-                color: activeRole === 'SENIOR_VOICE' ? '#070d1e' : '#cbd5e1',
-                fontWeight: activeRole === 'SENIOR_VOICE' ? '800' : '600',
                 fontSize: '0.85rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.2s ease'
+                border: activeRole === 'SENIOR_VOICE' ? undefined : 'none',
+                background: activeRole === 'SENIOR_VOICE' ? undefined : 'transparent',
+                boxShadow: activeRole === 'SENIOR_VOICE' ? undefined : 'none'
               }}
             >
               <Phone size={15} /> Senior Voice Line
@@ -194,23 +189,16 @@ export default function App() {
 
             <button
               onClick={() => setActiveRole('POLICE_ADMIN')}
+              className={activeRole === 'POLICE_ADMIN' ? 'liquid-glass-btn liquid-glass-btn-primary' : 'liquid-glass-btn'}
               style={{
                 padding: '8px 16px',
-                borderRadius: '10px',
-                border: 'none',
-                background: activeRole === 'POLICE_ADMIN' ? 'linear-gradient(135deg, #1f3d8a 0%, #15295c 100%)' : 'transparent',
-                color: activeRole === 'POLICE_ADMIN' ? '#fff' : '#cbd5e1',
-                fontWeight: activeRole === 'POLICE_ADMIN' ? '800' : '600',
                 fontSize: '0.85rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                borderBottom: activeRole === 'POLICE_ADMIN' ? '2px solid #eab308' : 'none',
-                transition: 'all 0.2s ease'
+                border: activeRole === 'POLICE_ADMIN' ? undefined : 'none',
+                background: activeRole === 'POLICE_ADMIN' ? undefined : 'transparent',
+                boxShadow: activeRole === 'POLICE_ADMIN' ? undefined : 'none'
               }}
             >
-              <Shield size={15} color={activeRole === 'POLICE_ADMIN' ? '#eab308' : 'currentColor'} /> Police Command Center
+              <Shield size={15} color={activeRole === 'POLICE_ADMIN' ? '#fbbf24' : 'currentColor'} /> Police Command Center
               {stats.pendingVolunteersCount > 0 && (
                 <span style={{ background: '#f59e0b', color: '#070d1e', padding: '1px 6px', borderRadius: '10px', fontSize: '0.7rem', fontWeight: '800' }}>
                   {stats.pendingVolunteersCount}
@@ -220,22 +208,16 @@ export default function App() {
 
             <button
               onClick={() => setActiveRole('VOLUNTEER')}
+              className={activeRole === 'VOLUNTEER' ? 'liquid-glass-btn liquid-glass-btn-emerald' : 'liquid-glass-btn'}
               style={{
                 padding: '8px 16px',
-                borderRadius: '10px',
-                border: 'none',
-                background: activeRole === 'VOLUNTEER' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'transparent',
-                color: activeRole === 'VOLUNTEER' ? '#fff' : '#cbd5e1',
-                fontWeight: activeRole === 'VOLUNTEER' ? '800' : '600',
                 fontSize: '0.85rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.2s ease'
+                border: activeRole === 'VOLUNTEER' ? undefined : 'none',
+                background: activeRole === 'VOLUNTEER' ? undefined : 'transparent',
+                boxShadow: activeRole === 'VOLUNTEER' ? undefined : 'none'
               }}
             >
-              <HeartHandshake size={15} /> {loggedVolunteer ? `Volunteer (${loggedVolunteer.name?.split(' ')[0]})` : 'Volunteer Portal (Login)'}
+              <HeartHandshake size={15} /> {loggedVolunteer ? `Volunteer (${loggedVolunteer.name?.split(' ')[0]})` : 'Volunteer Portal'}
               {loggedVolunteer && (
                 <span style={{
                   background: 'rgba(255,255,255,0.22)',
@@ -253,19 +235,13 @@ export default function App() {
 
             <button
               onClick={() => setActiveRole('MAP')}
+              className={activeRole === 'MAP' ? 'liquid-glass-btn liquid-glass-btn-primary' : 'liquid-glass-btn'}
               style={{
                 padding: '8px 16px',
-                borderRadius: '10px',
-                border: 'none',
-                background: activeRole === 'MAP' ? 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)' : 'transparent',
-                color: activeRole === 'MAP' ? '#070d1e' : '#cbd5e1',
-                fontWeight: activeRole === 'MAP' ? '800' : '600',
                 fontSize: '0.85rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.2s ease'
+                border: activeRole === 'MAP' ? undefined : 'none',
+                background: activeRole === 'MAP' ? undefined : 'transparent',
+                boxShadow: activeRole === 'MAP' ? undefined : 'none'
               }}
             >
               <Radio size={15} /> Geo-Radar
