@@ -1,33 +1,37 @@
 """routers/requests.py — Requests CRUD + 112 emergency escalation"""
 
-import random
-from datetime import datetime, timezone
-from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
 from typing import Optional
+from fastapi import APIRouter, Query, Request
+from fastapi.responses import JSONResponse
 import aiosqlite
 
 from database import (
     get_requests, get_request_by_id, get_volunteers,
     add_request, add_emergency_record, update_request_assign,
-    update_request_status, get_emergency_records, log_audit,
+    update_request_status, update_request_fields,
+    get_emergency_records, log_audit,
     DB_PATH,
 )
+from utils import _now, broadcast, make_req_id, make_emg_id, paginate
 
 router = APIRouter()
 
 
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-
-
-@router.get("/api/requests")
-async def list_requests(status: Optional[str] = None, urgency: Optional[str] = None):
+# ─── List requests (paginated + filtered) ─────────────────────────────────────
+@router.get("/api/requests", tags=["Requests"])
+async def list_requests(
+    status:  Optional[str] = Query(None, description="PENDING|ASSIGNED|IN_PROGRESS|RESOLVED|ESCALATED_112"),
+    urgency: Optional[str] = Query(None, description="CRITICAL_112|HIGH|MEDIUM|ROUTINE"),
+    limit:   Optional[int] = Query(None, ge=1, le=500),
+    offset:  Optional[int] = Query(0,    ge=0),
+):
     async with aiosqlite.connect(DB_PATH) as db:
-        return await get_requests(db, status=status, urgency=urgency)
+        reqs = await get_requests(db, status=status, urgency=urgency)
+    return paginate(reqs, limit, offset)
 
 
-@router.get("/api/requests/{req_id}")
+# ─── Single request ───────────────────────────────────────────────────────────
+@router.get("/api/requests/{req_id}", tags=["Requests"])
 async def get_request(req_id: str):
     async with aiosqlite.connect(DB_PATH) as db:
         r = await get_request_by_id(db, req_id)
@@ -36,15 +40,16 @@ async def get_request(req_id: str):
     return r
 
 
-@router.post("/api/requests", status_code=201)
+# ─── Create request ───────────────────────────────────────────────────────────
+@router.post("/api/requests", status_code=201, tags=["Requests"])
 async def create_request(request: Request):
     body = await request.json()
-    senior_name = body.get("seniorName")
-    description = body.get("description")
+    senior_name = (body.get("seniorName") or "").strip()
+    description = (body.get("description") or "").strip()
     if not senior_name or not description:
         return JSONResponse(status_code=400, content={"error": "seniorName and description are required."})
 
-    req_id = f"REQ-{datetime.now().year}-{random.randint(100, 999)}"
+    req_id = make_req_id()
     new_req = {
         "id": req_id, "seniorName": senior_name,
         "seniorPhone": body.get("seniorPhone"),
@@ -59,15 +64,44 @@ async def create_request(request: Request):
         await log_audit(db, "REQUEST_CREATED",
                         f"Request {req_id} created for {senior_name} ({new_req['category']}).",
                         "Web Portal")
+
+    await broadcast(request.app, "REQUEST_CREATED", created)
     return created
 
 
-@router.put("/api/requests/{req_id}/status")
+# ─── Partial update (PATCH) ───────────────────────────────────────────────────
+@router.patch("/api/requests/{req_id}", tags=["Requests"])
+async def patch_request(req_id: str, request: Request):
+    """Update mutable fields on a request (category, urgency, description, location, language, audioNotes)."""
+    body = await request.json()
+    actor = body.pop("_actor", "Web Portal")
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        r = await get_request_by_id(db, req_id)
+        if not r:
+            return JSONResponse(status_code=404, content={"error": "Request not found"})
+        updated = await update_request_fields(db, req_id, body)
+        await log_audit(db, "REQUEST_UPDATED",
+                        f"Request {req_id} fields updated by {actor}: {list(body.keys())}.",
+                        actor)
+
+    await broadcast(request.app, "REQUEST_UPDATED", updated)
+    return updated
+
+
+# ─── Update status ────────────────────────────────────────────────────────────
+@router.put("/api/requests/{req_id}/status", tags=["Requests"])
 async def update_status(req_id: str, request: Request):
     body = await request.json()
     status = body.get("status")
     actor  = body.get("actor", "Volunteer")
     note   = body.get("note", "Updated by user")
+
+    valid_statuses = {"PENDING", "ASSIGNED", "IN_PROGRESS", "RESOLVED", "ESCALATED_112"}
+    if status not in valid_statuses:
+        return JSONResponse(status_code=400, content={
+            "error": f"Invalid status. Must be one of: {', '.join(sorted(valid_statuses))}"
+        })
 
     async with aiosqlite.connect(DB_PATH) as db:
         r = await get_request_by_id(db, req_id)
@@ -79,10 +113,13 @@ async def update_status(req_id: str, request: Request):
                         f"Request {req_id} changed from {old_status} to {status}. Note: {note}.",
                         actor)
         updated = await get_request_by_id(db, req_id)
+
+    await broadcast(request.app, "REQUEST_STATUS_UPDATED", updated)
     return updated
 
 
-@router.put("/api/requests/{req_id}/assign")
+# ─── Assign volunteer ─────────────────────────────────────────────────────────
+@router.put("/api/requests/{req_id}/assign", tags=["Requests"])
 async def assign_request(req_id: str, request: Request):
     body = await request.json()
     vol_id = body.get("volunteerId")
@@ -107,11 +144,13 @@ async def assign_request(req_id: str, request: Request):
                         f"Request {req_id} dispatched to {v['name']} ({v.get('policeBadgeNo', 'Verified')}).",
                         actor)
         updated = await get_request_by_id(db, req_id)
+
+    await broadcast(request.app, "REQUEST_ASSIGNED", updated)
     return updated
 
 
 # ─── Emergency manual escalation ──────────────────────────────────────────────
-@router.post("/api/emergency/manual-escalate", status_code=201)
+@router.post("/api/emergency/manual-escalate", status_code=201, tags=["Requests"])
 async def manual_escalate(request: Request):
     body = await request.json()
     senior_name  = body.get("seniorName", "Unknown Senior Resident")
@@ -123,7 +162,7 @@ async def manual_escalate(request: Request):
     if not senior_name or not location:
         return JSONResponse(status_code=400, content={"error": "seniorName and location are required."})
 
-    emg_id = f"EMG-MANUAL-{int(datetime.now().timestamp() * 1000) % 10000}"
+    emg_id = make_emg_id().replace("112", "MANUAL")
     emg_req = {
         "id": emg_id, "seniorName": senior_name, "seniorPhone": senior_phone,
         "location": location, "language": "English",
@@ -137,7 +176,7 @@ async def manual_escalate(request: Request):
     async with aiosqlite.connect(DB_PATH) as db:
         await add_request(db, emg_req)
         await add_emergency_record(db, {
-            "id": f"EMG-{int(datetime.now().timestamp() * 1000)}",
+            "id": make_emg_id(),
             "requestId": emg_id, "seniorName": senior_name, "location": location,
             "reason": f"Manual 112 by {officer_name}: {reason}",
             "callerPhone": senior_phone, "escalatedBy": officer_name,
@@ -147,6 +186,7 @@ async def manual_escalate(request: Request):
                         f"MANUAL 112 by {officer_name}: {senior_name} at {location}. Reason: {reason}",
                         officer_name)
 
+    await broadcast(request.app, "EMERGENCY_ESCALATED", emg_req)
     return {
         "success": True,
         "message": f"Manual 112 escalation logged. Shirva Police QRT and 112 notified for {senior_name} at {location}.",
@@ -154,7 +194,12 @@ async def manual_escalate(request: Request):
     }
 
 
-@router.get("/api/emergency/records")
-async def emergency_records():
+# ─── Emergency records ────────────────────────────────────────────────────────
+@router.get("/api/emergency/records", tags=["Requests"])
+async def emergency_records(
+    limit:  Optional[int] = Query(None, ge=1, le=500),
+    offset: Optional[int] = Query(0,    ge=0),
+):
     async with aiosqlite.connect(DB_PATH) as db:
-        return await get_emergency_records(db)
+        records = await get_emergency_records(db)
+    return paginate(records, limit, offset)

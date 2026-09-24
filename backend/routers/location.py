@@ -14,6 +14,7 @@ router = APIRouter()
 
 
 @router.get("/api/locations")
+@router.get("/api/location/locations")
 @router.get("/api/shirva-locations")
 async def get_locations():
     return SHIRVA_LOCATIONS

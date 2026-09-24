@@ -1,898 +1,524 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Phone, PhoneCall, PhoneOff, Mic, MicOff, Volume2, ShieldAlert, CheckCircle2, Clock, MapPin, Sparkles, AlertTriangle, HeartPulse, User, Radio, Cpu } from 'lucide-react';
-import { WAVAwbRecorder } from '../utils/audioRecorder';
+import { Phone, PhoneCall, PhoneOff, Mic, MicOff, Volume2, ShieldAlert, CheckCircle2, MapPin, HeartPulse, AlertCircle, RefreshCw } from 'lucide-react';
 
-const PRESET_SCENARIOS = [
+const PRESETS = [
   {
-    id: 'chest-pain-emergency',
-    title: '🚨 Critical Emergency (112)',
-    kannadaText: 'ನನಗೆ ಎದೆಯಲ್ಲಿ ವಿಪರೀತ ನೋವು ಇದೆ ಮತ್ತು ಉಸಿರಾಟ ಕಷ್ಟವಾಗುತ್ತಿದೆ, ಮಂಚಕಲ್ ಜಂಕ್ಷನ್ ಬಳಿ',
-    englishText: 'I am having severe chest pain and breathlessness near Manchakal Junction, Shirva.',
-    language: 'Kannada',
-    location: 'Manchakal Junction, Shirva',
-    type: 'EMERGENCY'
+    id: 'emergency',
+    title: '🚨 Heart / Chest Pain Emergency',
+    titleKn: '🚨 ಎದೆ ನೋವು / ತುರ್ತು ಪರಿಸ್ಥಿತಿ (112)',
+    kannada: 'ನನಗೆ ಎದೆಯಲ್ಲಿ ವಿಪರೀತ ನೋವು ಇದೆ ಮತ್ತು ಉಸಿರಾಟ ಕಷ್ಟವಾಗುತ್ತಿದೆ, ಮಂಚಕಲ್ ಜಂಕ್ಷನ್',
+    english: 'I have severe chest pain and breathlessness near Manchakal Junction, Shirva.',
+    type: 'EMERGENCY',
+    location: 'Manchakal Junction, Shirva'
   },
   {
-    id: 'medicine-delivery',
+    id: 'medicine',
     title: '💊 Urgent BP Medicine Delivery',
-    kannadaText: 'ನನಗೆ ಶಿರ್ವಾ ಮೆಡಿಕಲ್ಸ್ ನಿಂದ ಬಿಪಿ ಮಾತ್ರೆಗಳು ತಕ್ಷಣ ಬೇಕಾಗಿದೆ, ಮತ್ತಾರ್ ಕ್ರಾಸ್ ಗೆ ತಲುಪಿಸಿ',
-    englishText: 'Need urgent blood pressure tablets from Shirva Medicals delivered to Mattar Cross.',
-    language: 'Kannada',
-    location: 'Mattar Cross Road, Shirva',
-    type: 'MEDICINE'
+    titleKn: '💊 ಬಿಪಿ ಮಾತ್ರೆ ತಲುಪಿಸುವುದು',
+    kannada: 'ನನಗೆ ಶಿರ್ವಾ ಮೆಡಿಕಲ್ಸ್ ನಿಂದ ಬಿಪಿ ಮಾತ್ರೆಗಳು ತಕ್ಷಣ ಬೇಕಾಗಿದೆ, ಮತ್ತಾರ್ ಕ್ರಾಸ್ ಗೆ ತಲುಪಿಸಿ',
+    english: 'Need urgent blood pressure tablets from Shirva Medicals delivered to Mattar Cross.',
+    type: 'MEDICINE',
+    location: 'Mattar Cross Road, Shirva'
   },
   {
-    id: 'auto-transport',
-    title: '🛺 Auto-Rickshaw to Shirva Clinic',
-    kannadaText: 'ಶಿರ್ವಾ ಸಮುದಾಯ ಆರೋಗ್ಯ ಕೇಂದ್ರಕ್ಕೆ ಹೋಗಲು ಆಟೋ ರಿಕ್ಷಾ ಬೇಕಾಗಿದೆ',
-    englishText: 'Need an auto-rickshaw to visit Shirva Primary Health Centre (PHC).',
-    language: 'Kannada',
-    location: 'Near Our Lady of Health Church, Shirva',
-    type: 'TRANSPORT'
+    id: 'transport',
+    title: '🛺 Auto-Rickshaw to Shirva PHC',
+    titleKn: '🛺 ಆಸ್ಪತ್ರೆಗೆ ಆಟೋ ರಿಕ್ಷಾ',
+    kannada: 'ಶಿರ್ವಾ ಸಮುದಾಯ ಆರೋಗ್ಯ ಕೇಂದ್ರಕ್ಕೆ ಹೋಗಲು ಆಟೋ ರಿಕ್ಷಾ ಬೇಕಾಗಿದೆ',
+    english: 'Need an auto-rickshaw to visit Shirva Primary Health Centre.',
+    type: 'TRANSPORT',
+    location: 'Near Church, Shirva'
   },
   {
-    id: 'grocery-ration',
-    title: '🛒 Daily Grocery & Ration Need',
-    kannadaText: 'ನಡೆದಾಡಲು ಆಗುತ್ತಿಲ್ಲ, ದಿನಸಿ ಮತ್ತು ಹಾಲು ತಂದುಕೊಡಲು ಯಾರಾದರೂ ಸಹಾಯ ಬೇಕು',
-    englishText: 'Unable to walk, need someone to buy fresh milk and rations from Shirva Market.',
-    language: 'English',
-    location: 'Paniyadi Temple Road, Shirva',
-    type: 'GROCERY'
+    id: 'groceries',
+    title: '🛒 Daily Ration & Food Help',
+    titleKn: '🛒 ದಿನಸಿ ಮತ್ತು ಆಹಾರ ಸಹಾಯ',
+    kannada: 'ನಡೆದಾಡಲು ಆಗುತ್ತಿಲ್ಲ, ದಿನಸಿ ಮತ್ತು ಹಾಲು ತಂದುಕೊಡಲು ಯಾರಾದರೂ ಸಹಾಯ ಬೇಕು',
+    english: 'Unable to walk, need someone to buy fresh milk and rations from Shirva Market.',
+    type: 'ROUTINE',
+    location: 'Paniyadi, Shirva'
   }
 ];
 
 export default function SeniorVoicePortal({ onRefreshNeeded }) {
-  const [callState, setCallState] = useState('IDLE'); // IDLE, DIALING, CONNECTED, PROCESSING, COMPLETED
-  const [selectedLanguage, setSelectedLanguage] = useState('Kannada');
-  const [seniorName, setSeniorName] = useState('Saraswathi Amma');
-  const [seniorPhone, setSeniorPhone] = useState('+91 97410 88231');
-  const [seniorLocation, setSeniorLocation] = useState('Manchakal Junction, Shirva');
-
-  // Engine mode: 'browser' uses Web Speech API; 'backend' uses pyttsx3 + speech_recognition
-  const [engineMode, setEngineMode] = useState('browser');
-
+  const [lang, setLang] = useState('Kannada'); // 'Kannada' or 'English'
+  const [callStatus, setCallStatus] = useState('IDLE'); // 'IDLE', 'CONNECTED', 'PROCESSING', 'RESULT'
   const [transcript, setTranscript] = useState('');
-  const [isListening, setIsListening] = useState(false);
-  const [isSpeechSupported, setIsSpeechSupported] = useState(false);
-  const [responseResult, setResponseResult] = useState(null);
+  const [seniorName] = useState('Saraswathi Amma (Age 74)');
+  const [seniorPhone] = useState('+91 99455 94198');
+  const [location, setLocation] = useState('Shirva Town Centre');
   const [callDuration, setCallDuration] = useState(0);
-
-  // Backend engine states
-  const [isRecording, setIsRecording] = useState(false);
-  const [backendStatus, setBackendStatus] = useState('');
-  const [ttsAudioUrl, setTtsAudioUrl] = useState(null);
-  const [backendVoices, setBackendVoices] = useState([]);
-  const [isServerListening, setIsServerListening] = useState(false);
+  const [triageResult, setTriageResult] = useState(null);
+  const [isCallingPhone, setIsCallingPhone] = useState(false);
 
   const recognitionRef = useRef(null);
   const timerRef = useRef(null);
-  const recorderRef = useRef(null);
-  const ttsAudioRef = useRef(null);
 
-  // Setup Web Speech Recognition if available
+  // Setup Web Speech Recognition
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
-      setIsSpeechSupported(true);
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.lang = selectedLanguage === 'Kannada' ? 'kn-IN' : 'en-IN';
+      const rec = new SpeechRecognition();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = lang === 'Kannada' ? 'kn-IN' : 'en-IN';
 
-      recognition.onresult = (event) => {
-        let currentText = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          currentText += event.results[i][0].transcript;
+      rec.onresult = (e) => {
+        let text = '';
+        for (let i = 0; i < e.results.length; i++) {
+          text += e.results[i][0].transcript + ' ';
         }
-        setTranscript(currentText);
+        setTranscript(text.trim());
       };
 
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognition.onerror = (event) => {
-        console.warn('Speech recognition error', event.error);
-        setIsListening(false);
-      };
-
-      recognitionRef.current = recognition;
+      rec.onerror = (e) => console.warn('Speech Rec Error:', e);
+      recognitionRef.current = rec;
     }
-  }, [selectedLanguage]);
+  }, [lang]);
 
-  // Fetch available pyttsx3 voices on mount
+  // Duration Timer
   useEffect(() => {
-    fetch('http://localhost:5000/api/voice/voices')
-      .then(r => r.json())
-      .then(d => setBackendVoices(d.voices || []))
-      .catch(() => {});
-  }, []);
-
-  // Call timer effect
-  useEffect(() => {
-    if (callState === 'CONNECTED') {
-      timerRef.current = setInterval(() => {
-        setCallDuration(prev => prev + 1);
-      }, 1000);
+    if (callStatus === 'CONNECTED') {
+      timerRef.current = setInterval(() => setCallDuration(d => d + 1), 1000);
     } else {
       clearInterval(timerRef.current);
-      if (callState === 'IDLE') setCallDuration(0);
+      setCallDuration(0);
     }
     return () => clearInterval(timerRef.current);
-  }, [callState]);
+  }, [callStatus]);
 
-  // Text to Speech — browser Web Speech API (fallback)
-  const speakResponse = (text, lang) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang === 'Kannada' ? 'kn-IN' : 'en-IN';
-      utterance.rate = 0.9;
-      window.speechSynthesis.speak(utterance);
-    }
-  };
-
-  // Play pyttsx3 TTS audio from backend
-  const playBackendTTS = (text, lang) => {
-    const encoded = encodeURIComponent(text);
-    const langCode = lang === 'Kannada' ? 'kn-IN' : 'en-IN';
-    const url = `http://localhost:5000/api/voice/tts?text=${encoded}&language=${langCode}`;
-    setTtsAudioUrl(url);
-    setTimeout(() => {
-      if (ttsAudioRef.current) {
-        ttsAudioRef.current.load();
-        ttsAudioRef.current.play().catch(e => console.warn('TTS play:', e));
-      }
-    }, 80);
-  };
-
-  // Record from browser mic and transcribe via speech_recognition backend
-  const toggleBackendRecording = async () => {
-    if (isRecording) {
-      // Stop and upload
-      setIsRecording(false);
-      setBackendStatus('Transcribing with speech_recognition...');
-      try {
-        const wavBlob = await recorderRef.current.stop();
-        const formData = new FormData();
-        formData.append('file', wavBlob, 'audio.wav');
-        formData.append('language', selectedLanguage === 'Kannada' ? 'kn-IN' : 'en-IN');
-        const res = await fetch('http://localhost:5000/api/voice/transcribe', {
-          method: 'POST',
-          body: formData,
-        });
-        const data = await res.json();
-        if (data.success) {
-          setTranscript(data.transcript);
-          setBackendStatus(`✅ Recognized: "${data.transcript}"`);
-        } else {
-          setBackendStatus(`⚠️ ${data.error}`);
-        }
-      } catch (err) {
-        setBackendStatus('❌ Recording/transcription failed.');
-        console.error(err);
-      }
-    } else {
-      // Start recording
-      try {
-        recorderRef.current = new WAVAwbRecorder();
-        await recorderRef.current.start();
-        setIsRecording(true);
-        setBackendStatus('🎙️ Recording… click again to stop & transcribe.');
-      } catch (err) {
-        setBackendStatus('❌ Microphone access denied or unavailable.');
-        console.error(err);
-      }
-    }
-  };
-
-  // Use server microphone via speech_recognition.Microphone
-  const handleServerMicListen = async () => {
-    setIsServerListening(true);
-    setBackendStatus('🖥️ Server mic listening via speech_recognition.Microphone()...');
-    try {
-      const res = await fetch('http://localhost:5000/api/voice/listen-mic', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          language: selectedLanguage === 'Kannada' ? 'kn-IN' : 'en-IN',
-          timeout: 7,
-          phraseTimeLimit: 10
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setTranscript(data.transcript);
-        setBackendStatus(`✅ Server mic recognized: "${data.transcript}"`);
-      } else {
-        setBackendStatus(`⚠️ ${data.error}`);
-      }
-    } catch (err) {
-      setBackendStatus('❌ Server mic endpoint failed.');
-      console.error(err);
-    } finally {
-      setIsServerListening(false);
-    }
-  };
-
-  // Announce on police console speakers via pyttsx3
-  const handleSpeakOnConsole = async (text) => {
-    try {
-      await fetch('http://localhost:5000/api/voice/speak-server', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: text || 'Sahayak Police Control Room Alert.', rate: 145 })
-      });
-      setBackendStatus('📢 Announced on station console via pyttsx3.');
-    } catch (err) {
-      setBackendStatus('❌ Console speaker failed.');
-    }
-  };
-
+  // Start Call
   const handleStartCall = () => {
-    setCallState('DIALING');
-    setResponseResult(null);
     setTranscript('');
-    setTimeout(() => {
-      setCallState('CONNECTED');
-      // Greet senior warmly
-      const greeting = selectedLanguage === 'Kannada' 
-        ? "ನಮಸ್ಕಾರ, ಶಿರ್ವಾ ಸಹಾಯಕ ಸಹಾಯವಾಣಿಗೆ ಸ್ವಾಗತ. ನಿಮಗೆ ಯಾವ ಸಹಾಯ ಬೇಕು ಹೇಳಿ." 
-        : "Hello, welcome to Shirva Sahayak community assistance hotline. How can we help you today?";
-      speakResponse(greeting, selectedLanguage);
-    }, 1500);
-  };
+    setTriageResult(null);
+    setCallStatus('CONNECTED');
 
-  const handleEndCall = () => {
-    if (recognitionRef.current && isListening) {
-      recognitionRef.current.stop();
-    }
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-    setCallState('IDLE');
-    setIsListening(false);
-  };
+    // Speak initial greeting
+    const greeting = lang === 'Kannada'
+      ? 'ನಮಸ್ಕಾರ, ಶಿರ್ವಾ ಪೊಲೀಸ್ ಸಹಾಯಕ ಸಹಾಯವಾಣಿಗೆ ಸ್ವಾಗತ. ನಿಮ್ಮ ಸಮಸ್ಯೆಯನ್ನು ಹೇಳಿ.'
+      : 'Welcome to Shirva Police Sahayak helpline. Please speak your requirement clearly.';
+    
+    speak(greeting, lang);
 
-  const toggleMicListening = () => {
-    if (!recognitionRef.current) {
-      alert('Speech recognition is not supported in this browser. You can click the presets below to simulate voice input!');
-      return;
-    }
-
-    if (isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-    } else {
+    if (recognitionRef.current) {
       try {
-        recognitionRef.current.lang = selectedLanguage === 'Kannada' ? 'kn-IN' : 'en-IN';
         recognitionRef.current.start();
-        setIsListening(true);
       } catch (err) {
-        console.error(err);
+        console.warn('Recognition start warning:', err);
       }
     }
   };
 
-  const submitVoiceRequest = async (textToSend) => {
-    const speechText = textToSend || transcript;
-    if (!speechText.trim()) {
-      alert('Please speak or select a requirement first.');
-      return;
+  // End Call & Process Triage
+  const handleEndCall = async () => {
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch (e) {}
     }
 
-    setCallState('PROCESSING');
+    const spokenText = transcript.trim() || (lang === 'Kannada' ? 'ನನಗೆ ಸಹಾಯ ಬೇಕು' : 'I need assistance');
+    setCallStatus('PROCESSING');
 
     try {
       const res = await fetch('http://localhost:5000/api/voice/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          transcript: speechText,
+          transcript: spokenText,
           seniorName,
           seniorPhone,
-          location: seniorLocation,
-          language: selectedLanguage
+          location,
+          language: lang
         })
       });
-      const data = await res.json();
-      setResponseResult(data);
-      setCallState('COMPLETED');
 
-      // Speak back the response — use pyttsx3 backend TTS if in backend engine mode
+      const data = await res.json();
+      setTriageResult(data);
+      setCallStatus('RESULT');
+
+      // Speak confirmation
       if (data.responseSpeech) {
-        if (engineMode === 'backend' && data.ttsAudioUrl) {
-          playBackendTTS(data.responseSpeech, selectedLanguage);
-        } else {
-          speakResponse(data.responseSpeech, selectedLanguage);
-        }
+        speak(data.responseSpeech, lang);
       }
 
       if (onRefreshNeeded) onRefreshNeeded();
     } catch (err) {
       console.error(err);
-      alert('Error communicating with Sahayak Server. Ensure backend is running.');
-      setCallState('CONNECTED');
+      alert('Failed to connect to backend server. Make sure backend is running on port 5000.');
+      setCallStatus('IDLE');
     }
   };
 
-  const handleApplyPreset = (scenario) => {
-    const text = selectedLanguage === 'Kannada' ? scenario.kannadaText : scenario.englishText;
+  // Speak text via SpeechSynthesis
+  const speak = (text, language) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = language === 'Kannada' ? 'kn-IN' : 'en-IN';
+      u.rate = 0.95;
+      window.speechSynthesis.speak(u);
+    }
+  };
+
+  // Trigger Outbound GSM Call to user's phone (+91 99455 94198)
+  const handleRingMyPhone = async () => {
+    setIsCallingPhone(true);
+    try {
+      const res = await fetch('http://localhost:5000/api/calls/call-my-phone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: '+919945594198', seniorName })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('📞 Calling your Indian mobile (+91 99455 94198) now! Pick up to hear the helpline.');
+      } else {
+        alert('Call failed: ' + (data.error || 'Unknown'));
+      }
+    } catch (e) {
+      alert('Error triggering phone call: ' + e.message);
+    } finally {
+      setIsCallingPhone(false);
+    }
+  };
+
+  // Apply quick preset scenario
+  const handleSelectPreset = (p) => {
+    const text = lang === 'Kannada' ? p.kannada : p.english;
+    setLocation(p.location);
     setTranscript(text);
-    setSeniorLocation(scenario.location);
-    if (callState !== 'CONNECTED') {
-      setCallState('CONNECTED');
+    if (callStatus !== 'CONNECTED') {
+      setCallStatus('CONNECTED');
+      speak(lang === 'Kannada' ? 'ಕೋರಿಕೆ ಸ್ವೀಕರಿಸಲಾಗಿದೆ.' : 'Requirement received.', lang);
     }
   };
 
-  const formatSeconds = (sec) => {
-    const m = Math.floor(sec / 60).toString().padStart(2, '0');
-    const s = (sec % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  };
+  const formatTime = (s) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* Hidden pyttsx3 TTS audio player */}
-      {ttsAudioUrl && (
-        <audio ref={ttsAudioRef} src={ttsAudioUrl} style={{ display: 'none' }} />
-      )}
-      {/* Top Banner with Senior Assistance Context */}
-      <div className="glass-panel" style={{ padding: '24px', background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.12) 0%, rgba(13, 27, 62, 0.7) 100%)', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              <span className="badge-verified" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.3)' }}>
-                👴👵 Voice-First Elderly Access
-              </span>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                Designed for 60+ residents of Shirva
-              </span>
-            </div>
-            <h2 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#fff', marginBottom: '4px' }}>
-              Shirva Sahayak Voice Assistance Line
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-              Toll-Free Senior Hotline: <strong style={{ color: '#fbbf24' }}>1800-SHIRVA-CARE (1800-744-782)</strong> • Spoken in Kannada, Tulu & English
-            </p>
-          </div>
-
-          {/* Language Selector + Engine Mode Toggle */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.3)', padding: '6px 12px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Language:</span>
-              {['Kannada', 'English'].map(lang => (
-                <button
-                  key={lang}
-                  onClick={() => setSelectedLanguage(lang)}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: 'none',
-                    background: selectedLanguage === lang ? 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)' : 'transparent',
-                    color: selectedLanguage === lang ? '#070d1e' : '#cbd5e1',
-                    fontWeight: selectedLanguage === lang ? '700' : '500',
-                    fontSize: '0.85rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  {lang === 'Kannada' ? 'ಕನ್ನಡ (Kannada)' : 'English'}
-                </button>
-              ))}
-            </div>
-
-            {/* Engine mode switcher */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.4)', padding: '4px 10px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Engine:</span>
-              {[['browser', '🌐 Web Speech API'], ['backend', '🐍 pyttsx3 + SR']].map(([mode, label]) => (
-                <button
-                  key={mode}
-                  onClick={() => setEngineMode(mode)}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: engineMode === mode ? (mode === 'backend' ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' : 'rgba(255,255,255,0.12)') : 'transparent',
-                    color: engineMode === mode ? '#fff' : '#94a3b8',
-                    fontSize: '0.75rem',
-                    fontWeight: engineMode === mode ? '700' : '500',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Grid: Interactive Phone Console & Presets */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 480px) 1fr', gap: '24px' }}>
-        
-        {/* Phone Handset / Interactive Call Station */}
-        <div className="glass-panel" style={{ padding: '28px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', overflow: 'hidden' }}>
-          
-          {/* Status Indicator */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
-            <span style={{ 
-              width: '10px', 
-              height: '10px', 
-              borderRadius: '50%', 
-              background: callState === 'CONNECTED' ? '#10b981' : (callState === 'DIALING' ? '#f59e0b' : '#64748b'),
-              boxShadow: callState === 'CONNECTED' ? '0 0 10px #10b981' : 'none'
-            }} />
-            <span style={{ fontSize: '0.9rem', fontWeight: '600', color: callState === 'CONNECTED' ? '#34d399' : '#94a3b8' }}>
-              {callState === 'IDLE' && 'Line Idle • Ready to Dial'}
-              {callState === 'DIALING' && 'Connecting to Shirva Sahayak IVR...'}
-              {callState === 'CONNECTED' && `Call Active (${formatSeconds(callDuration)})`}
-              {callState === 'PROCESSING' && 'AI Classifying Intent & Urgency...'}
-              {callState === 'COMPLETED' && 'Request Dispatched & Confirmed'}
-            </span>
-          </div>
-
-          {/* Caller Screen Simulation */}
-          <div style={{
-            width: '100%',
-            background: 'linear-gradient(180deg, #09132b 0%, #050b18 100%)',
-            border: '2px solid rgba(255, 255, 255, 0.12)',
-            borderRadius: '24px',
-            padding: '24px 20px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)',
-            marginBottom: '24px'
-          }}>
-            <div style={{ fontSize: '0.75rem', color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '8px' }}>
-              Shirva Police Community Assistance Net
-            </div>
-
-            <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#f8fafc', marginBottom: '4px' }}>
-              {seniorName}
-            </div>
-            <div style={{ fontSize: '0.85rem', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '16px' }}>
-              <MapPin size={14} /> {seniorLocation}
-            </div>
-
-            {/* Audio Waveform / Status display */}
-            <div style={{
-              width: '100%',
-              minHeight: '80px',
-              background: 'rgba(255, 255, 255, 0.04)',
-              borderRadius: '12px',
-              padding: '12px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              marginBottom: '16px',
-              textAlign: 'center'
-            }}>
-              {callState === 'IDLE' && (
-                <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
-                  Press the green button below to simulate dialing the senior hotline.
-                </span>
-              )}
-
-              {callState === 'DIALING' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f59e0b' }}>
-                  <PhoneCall size={20} className="animate-spin" />
-                  <span style={{ fontSize: '0.9rem' }}>Ringing Shirva Police IVR...</span>
-                </div>
-              )}
-
-              {(callState === 'CONNECTED' || callState === 'PROCESSING') && (
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', height: '28px', marginBottom: '6px' }}>
-                    {[12, 24, 18, 28, 15, 26, 19, 14, 22].map((h, i) => (
-                      <span
-                        key={i}
-                        style={{
-                          width: '4px',
-                          height: isListening ? `${h}px` : '6px',
-                          background: isListening ? '#10b981' : '#64748b',
-                          borderRadius: '2px',
-                          transition: 'height 0.15s ease'
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <span style={{ fontSize: '0.85rem', color: isListening ? '#34d399' : '#cbd5e1' }}>
-                    {isListening ? 'Listening to your voice... Speak now' : 'Click Mic or Preset to speak your requirement'}
-                  </span>
-                </div>
-              )}
-
-              {callState === 'COMPLETED' && (
-                <div style={{ color: responseResult?.isEmergency ? '#ef4444' : '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {responseResult?.isEmergency ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
-                  <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>
-                    {responseResult?.isEmergency ? '112 Emergency Escalated' : 'Verified Volunteer Dispatched'}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Spoken Transcript preview */}
-            <div style={{ width: '100%', textAlign: 'left' }}>
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>Spoken Transcript:</div>
-              <textarea
-                value={transcript}
-                onChange={(e) => setTranscript(e.target.value)}
-                placeholder={selectedLanguage === 'Kannada' ? 'ಮಾತನಾಡಿದ ಮಾತುಗಳು ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತವೆ...' : 'Voice spoken request will appear here...'}
-                rows={3}
-                style={{
-                  width: '100%',
-                  background: 'rgba(0,0,0,0.4)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '8px',
-                  color: '#fff',
-                  fontSize: '0.9rem',
-                  padding: '8px 10px',
-                  resize: 'none',
-                  fontFamily: 'inherit'
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Call Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', width: '100%', flexWrap: 'wrap' }}>
-            {callState === 'IDLE' ? (
-              <button
-                onClick={handleStartCall}
-                className="btn-primary"
-                style={{
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  padding: '14px 28px',
-                  borderRadius: '30px',
-                  fontSize: '1.05rem',
-                  fontWeight: '700',
-                  boxShadow: '0 4px 18px rgba(16, 185, 129, 0.4)'
-                }}
-              >
-                <Phone size={20} /> Dial Sahayak Line
-              </button>
-            ) : (
-              <>
-                {/* Browser mic (Web Speech API) */}
-                {engineMode === 'browser' && (
-                  <button
-                    onClick={toggleMicListening}
-                    style={{
-                      background: isListening ? '#ef4444' : 'rgba(255,255,255,0.1)',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      color: '#fff',
-                      borderRadius: '50%',
-                      width: '54px',
-                      height: '54px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      boxShadow: isListening ? '0 0 16px rgba(239, 68, 68, 0.6)' : 'none'
-                    }}
-                    title={isListening ? 'Stop Browser Mic' : 'Start Browser Speech Recognition'}
-                  >
-                    {isListening ? <MicOff size={22} /> : <Mic size={22} />}
-                  </button>
-                )}
-
-                {/* Backend recording buttons */}
-                {engineMode === 'backend' && (
-                  <>
-                    <button
-                      onClick={toggleBackendRecording}
-                      style={{
-                        background: isRecording ? '#ef4444' : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                        border: 'none',
-                        color: '#fff',
-                        borderRadius: '50%',
-                        width: '54px',
-                        height: '54px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        boxShadow: isRecording ? '0 0 16px rgba(239,68,68,0.6)' : '0 0 12px rgba(99,102,241,0.5)'
-                      }}
-                      title={isRecording ? 'Stop & Transcribe (speech_recognition)' : 'Record & Transcribe via Python SR'}
-                    >
-                      {isRecording ? <MicOff size={22} /> : <Cpu size={20} />}
-                    </button>
-
-                    <button
-                      onClick={handleServerMicListen}
-                      disabled={isServerListening}
-                      style={{
-                        background: isServerListening ? '#f59e0b' : 'rgba(255,255,255,0.08)',
-                        border: '1px solid rgba(99,102,241,0.4)',
-                        color: '#fff',
-                        borderRadius: '24px',
-                        padding: '8px 14px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        cursor: isServerListening ? 'not-allowed' : 'pointer',
-                        fontSize: '0.78rem',
-                        fontWeight: '600'
-                      }}
-                      title="Use station server microphone via speech_recognition"
-                    >
-                      <Radio size={14} /> {isServerListening ? 'Listening…' : 'Server Mic'}
-                    </button>
-                  </>
-                )}
-
-                <button
-                  onClick={() => submitVoiceRequest()}
-                  className="btn-police-gold"
-                  disabled={callState === 'PROCESSING'}
-                  style={{
-                    padding: '12px 24px',
-                    borderRadius: '24px',
-                    fontSize: '0.95rem'
-                  }}
-                >
-                  <Sparkles size={18} /> Confirm & Dispatch
-                </button>
-
-                <button
-                  onClick={handleEndCall}
-                  style={{
-                    background: '#ef4444',
-                    border: 'none',
-                    color: '#fff',
-                    borderRadius: '50%',
-                    width: '54px',
-                    height: '54px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)'
-                  }}
-                  title="Hang Up Call"
-                >
-                  <PhoneOff size={22} />
-                </button>
-              </>
-            )}
-          </div>
-
-          {/* Caller Details Customizer */}
-          <div style={{ marginTop: '24px', width: '100%', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px' }}>
-            <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <User size={14} /> Senior Resident Profile (Simulated Line):
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              <input
-                type="text"
-                value={seniorName}
-                onChange={(e) => setSeniorName(e.target.value)}
-                placeholder="Senior Name"
-                style={{
-                  background: 'rgba(0,0,0,0.3)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '6px',
-                  padding: '6px 8px',
-                  color: '#cbd5e1',
-                  fontSize: '0.8rem'
-                }}
-              />
-              <input
-                type="text"
-                value={seniorLocation}
-                onChange={(e) => setSeniorLocation(e.target.value)}
-                placeholder="Location in Shirva"
-                style={{
-                  background: 'rgba(0,0,0,0.3)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '6px',
-                  padding: '6px 8px',
-                  color: '#cbd5e1',
-                  fontSize: '0.8rem'
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Backend engine status bar */}
-          {engineMode === 'backend' && (
-            <div style={{
-              marginTop: '12px',
-              padding: '8px 12px',
-              borderRadius: '8px',
-              background: 'rgba(99,102,241,0.08)',
-              border: '1px solid rgba(99,102,241,0.25)',
-              fontSize: '0.78rem',
-              color: '#a5b4fc',
-              minHeight: '32px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              flexWrap: 'wrap'
-            }}>
-              <Cpu size={12} />
-              <span>{backendStatus || `🐍 pyttsx3 (${backendVoices.length} voices) + speech_recognition ready.`}</span>
-              {ttsAudioUrl && (
-                <button
-                  onClick={() => { if (ttsAudioRef.current) { ttsAudioRef.current.load(); ttsAudioRef.current.play(); } }}
-                  style={{ marginLeft: 'auto', background: 'rgba(99,102,241,0.3)', border: 'none', color: '#c7d2fe', borderRadius: '6px', padding: '3px 8px', fontSize: '0.72rem', cursor: 'pointer' }}
-                >
-                  <Volume2 size={11} style={{ display: 'inline', marginRight: '3px' }} />Replay pyttsx3 Audio
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Right Side: 1-Click Simulation Scenarios & Live Outcome View */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
-          {/* 1-Click Scenarios for Hackathon Evaluation */}
-          <div className="glass-panel" style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Sparkles size={18} color="#eab308" /> Evaluation Demo Scenarios (1-Click Presets)
-              </h3>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                Click any scenario to inject into voice line
-              </span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              {PRESET_SCENARIOS.map((scenario) => (
-                <div
-                  key={scenario.id}
-                  onClick={() => handleApplyPreset(scenario)}
-                  style={{
-                    padding: '14px',
-                    borderRadius: 'var(--radius-md)',
-                    background: scenario.type === 'EMERGENCY' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255,255,255,0.03)',
-                    border: scenario.type === 'EMERGENCY' ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid rgba(255,255,255,0.08)',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.borderColor = scenario.type === 'EMERGENCY' ? '#ef4444' : '#eab308';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.borderColor = scenario.type === 'EMERGENCY' ? 'rgba(239, 68, 68, 0.35)' : 'rgba(255,255,255,0.08)';
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <span style={{ fontSize: '0.9rem', fontWeight: '700', color: scenario.type === 'EMERGENCY' ? '#fca5a5' : '#f8fafc' }}>
-                      {scenario.title}
-                    </span>
-                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{scenario.language}</span>
-                  </div>
-
-                  <p style={{ fontSize: '0.8rem', color: '#cbd5e1', marginBottom: '8px', lineHeight: '1.4' }}>
-                    "{selectedLanguage === 'Kannada' ? scenario.kannadaText : scenario.englishText}"
-                  </p>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: '#94a3b8' }}>
-                    <MapPin size={12} /> {scenario.location}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Outcome Card: What the AI & Police System Decided */}
-          {responseResult && (
-            <div
-              className={responseResult.isEmergency ? 'glass-panel-emergency' : 'glass-panel'}
+    <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      
+      {/* 1. Language Toggle & Mode Bar */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '12px',
+        background: 'rgba(15, 23, 42, 0.7)',
+        padding: '12px 20px',
+        borderRadius: '16px',
+        border: '1px solid rgba(255, 255, 255, 0.1)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Language (ಭಾಷೆ):</span>
+          <div style={{ display: 'flex', gap: '6px', background: 'rgba(0,0,0,0.4)', padding: '4px', borderRadius: '10px' }}>
+            <button
+              onClick={() => setLang('Kannada')}
               style={{
-                padding: '24px',
-                borderLeft: responseResult.isEmergency ? '6px solid #ef4444' : '6px solid #10b981'
+                padding: '6px 16px',
+                borderRadius: '8px',
+                border: 'none',
+                background: lang === 'Kannada' ? '#fbbf24' : 'transparent',
+                color: lang === 'Kannada' ? '#0f172a' : '#cbd5e1',
+                fontWeight: '700',
+                cursor: 'pointer'
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {responseResult.isEmergency ? (
-                    <span className="badge-emergency animate-siren">
-                      🚨 112 CRITICAL EMERGENCY TRIGGERED
-                    </span>
-                  ) : (
-                    <span className="badge-verified">
-                      <CheckCircle2 size={14} /> POLICE-VERIFIED VOLUNTEER ASSIGNED
-                    </span>
-                  )}
-                  <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                    Request ID: {responseResult.request?.id}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <button
-                    onClick={() => speakResponse(responseResult.responseSpeech, selectedLanguage)}
-                    className="btn-outline"
-                    style={{ padding: '4px 10px', fontSize: '0.8rem' }}
-                    title="Replay using browser Web Speech API"
-                  >
-                    <Volume2 size={14} /> Browser TTS
-                  </button>
-                  <button
-                    onClick={() => playBackendTTS(responseResult.responseSpeech, selectedLanguage)}
-                    style={{ padding: '4px 10px', fontSize: '0.8rem', background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.4)', color: '#c7d2fe', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                    title="Replay using pyttsx3 (Python backend)"
-                  >
-                    <Cpu size={13} /> pyttsx3
-                  </button>
-                  <button
-                    onClick={() => handleSpeakOnConsole(responseResult.responseSpeech)}
-                    style={{ padding: '4px 10px', fontSize: '0.8rem', background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.35)', color: '#fbbf24', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                    title="Announce on station console speakers via pyttsx3"
-                  >
-                    <Radio size={13} /> Console
-                  </button>
-                </div>
-              </div>
-
-              {/* Spoken Response Readout */}
-              <div style={{
-                background: 'rgba(0,0,0,0.3)',
-                padding: '12px 16px',
+              ಕನ್ನಡ (Kannada)
+            </button>
+            <button
+              onClick={() => setLang('English')}
+              style={{
+                padding: '6px 16px',
                 borderRadius: '8px',
-                border: '1px solid rgba(255,255,255,0.06)',
-                marginBottom: '16px',
-                fontSize: '0.95rem',
-                color: '#f8fafc',
-                lineHeight: '1.5'
-              }}>
-                <div style={{ fontSize: '0.75rem', color: '#fbbf24', fontWeight: '600', marginBottom: '4px' }}>
-                  🤖 Sahayak Voice Agent Readout to Senior:
-                </div>
-                "{responseResult.responseSpeech}"
-              </div>
+                border: 'none',
+                background: lang === 'English' ? '#fbbf24' : 'transparent',
+                color: lang === 'English' ? '#0f172a' : '#cbd5e1',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              English
+            </button>
+          </div>
+        </div>
 
-              {/* Details breakdown */}
-              {responseResult.isEmergency ? (
-                <div style={{ background: 'rgba(239, 68, 68, 0.12)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-                  <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#f87171', marginBottom: '4px' }}>
-                    Emergency Protocols Activated:
-                  </div>
-                  <ul style={{ fontSize: '0.8rem', color: '#cbd5e1', paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <li>Karnataka Emergency Response Support System (112) automated notification dispatched.</li>
-                    <li>Shirva Police Station Quick Response Patrol van alerted to {responseResult.request?.location}.</li>
-                    <li>Trigger keywords recognized: "{responseResult.matchedTrigger}".</li>
-                  </ul>
-                </div>
-              ) : (
-                responseResult.matchedVolunteer && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-                    <div style={{ background: 'rgba(255,255,255,0.04)', padding: '10px 12px', borderRadius: '8px' }}>
-                      <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Assigned Volunteer</div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff' }}>{responseResult.matchedVolunteer.name}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#34d399' }}>{responseResult.matchedVolunteer.policeBadgeNo}</div>
-                    </div>
-                    <div style={{ background: 'rgba(255,255,255,0.04)', padding: '10px 12px', borderRadius: '8px' }}>
-                      <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Organization</div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fbbf24' }}>{responseResult.matchedVolunteer.organization}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{responseResult.matchedVolunteer.phone}</div>
-                    </div>
-                    <div style={{ background: 'rgba(255,255,255,0.04)', padding: '10px 12px', borderRadius: '8px' }}>
-                      <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Category & Urgency</div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fff' }}>{responseResult.request?.category}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#38bdf8' }}>Status: Dispatched</div>
-                    </div>
-                  </div>
-                )
-              )}
+        {/* Ring Real Phone Button */}
+        <button
+          onClick={handleRingMyPhone}
+          disabled={isCallingPhone}
+          style={{
+            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            color: '#fff',
+            border: 'none',
+            padding: '8px 18px',
+            borderRadius: '10px',
+            fontWeight: '600',
+            fontSize: '0.85rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)'
+          }}
+        >
+          <PhoneCall size={16} />
+          {isCallingPhone ? 'Calling Mobile...' : '📲 Ring My Phone (+91 99455 94198)'}
+        </button>
+      </div>
+
+      {/* 2. Main Large Interactive Call Card */}
+      <div style={{
+        background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(9, 14, 28, 0.98) 100%)',
+        border: '2px solid rgba(234, 179, 8, 0.3)',
+        borderRadius: '24px',
+        padding: '36px 24px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        textAlign: 'center',
+        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
+        position: 'relative'
+      }}>
+
+        {/* State: IDLE */}
+        {callStatus === 'IDLE' && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+            <div style={{ fontSize: '1rem', color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: '700' }}>
+              {lang === 'Kannada' ? 'ಶಿರ್ವಾ ಪೊಲೀಸ್ ಸಹಾಯಕ ಸಹಾಯವಾಣಿ' : 'Shirva Police Senior Citizen Helpline'}
             </div>
-          )}
+
+            <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#fff', margin: 0 }}>
+              {lang === 'Kannada' ? 'ಕರೆ ಮಾಡಲು ಬಟನ್ ಒತ್ತಿರಿ' : 'Press to Call Helpline'}
+            </h1>
+            <p style={{ color: '#94a3b8', fontSize: '1rem', maxWidth: '500px', margin: 0 }}>
+              {lang === 'Kannada'
+                ? 'ಮಾತನಾಡುವ ಮೂಲಕ ನಿಮ್ಮ ತುರ್ತು ಅಥವಾ ದಿನಸಿ/ಔಷಧಿ ಅಗತ್ಯವನ್ನು ತಿಳಿಸಿ. 112 ಪೊಲೀಸ್ ತುರ್ತು ರವಾನೆ ಸ್ವಯಂಚಾಲಿತವಾಗಿದೆ.'
+                : 'Speak naturally in Kannada or English. Automated NLTK triage routes emergencies to 112 and community requests to volunteers.'}
+            </p>
+
+            {/* Giant Green Call Button */}
+            <button
+              onClick={handleStartCall}
+              style={{
+                width: '120px',
+                height: '120px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                border: '4px solid rgba(255, 255, 255, 0.2)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: '0 0 40px rgba(34, 197, 94, 0.5)',
+                transition: 'transform 0.2s',
+                marginTop: '10px'
+              }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.06)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'scale(1.0)'}
+            >
+              <PhoneCall size={52} />
+            </button>
+            <div style={{ color: '#86efac', fontWeight: '700', fontSize: '1.1rem' }}>
+              {lang === 'Kannada' ? 'ಕರೆ ಪ್ರಾರಂಭಿಸಿ' : 'Start Voice Call'}
+            </div>
+          </div>
+        )}
+
+        {/* State: CONNECTED (Active Call) */}
+        {callStatus === 'CONNECTED' && (
+          <div style={{ width: '100%', maxWidth: '640px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'rgba(34, 197, 94, 0.15)',
+              color: '#4ade80',
+              padding: '6px 16px',
+              borderRadius: '20px',
+              fontWeight: '700',
+              fontSize: '0.9rem'
+            }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#22c55e', animation: 'pulse 1.5s infinite' }} />
+              {lang === 'Kannada' ? 'ಕರೆ ಸಂಪರ್ಕಗೊಂಡಿದೆ' : 'Call Connected'} ({formatTime(callDuration)})
+            </div>
+
+            <h2 style={{ fontSize: '1.5rem', color: '#fff', margin: 0, fontWeight: '700' }}>
+              🎙️ {lang === 'Kannada' ? 'ನಾವು ಕೇಳುತ್ತಿದ್ದೇವೆ, ಮಾತನಾಡಿ...' : 'We are listening, please speak...'}
+            </h2>
+
+            {/* Live Transcript Display */}
+            <div style={{
+              width: '100%',
+              minHeight: '120px',
+              background: 'rgba(0, 0, 0, 0.4)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: '16px',
+              padding: '16px 20px',
+              fontSize: '1.15rem',
+              color: transcript ? '#f8fafc' : '#64748b',
+              textAlign: 'left',
+              lineHeight: '1.6'
+            }}>
+              {transcript || (lang === 'Kannada' ? 'ಇಲ್ಲಿ ನಿಮ್ಮ ಮಾತುಗಳು ಮೂಡಿಬರುತ್ತವೆ...' : 'Your spoken words will appear here...')}
+            </div>
+
+            {/* End Call / Send Button */}
+            <div style={{ display: 'flex', gap: '16px', marginTop: '10px' }}>
+              <button
+                onClick={handleEndCall}
+                style={{
+                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '14px 32px',
+                  borderRadius: '14px',
+                  fontSize: '1.05rem',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  boxShadow: '0 4px 20px rgba(239, 68, 68, 0.4)'
+                }}
+              >
+                <PhoneOff size={20} />
+                {lang === 'Kannada' ? 'ಕರೆ ಮುಗಿಸಿ / ಕಳುಹಿಸಿ' : 'Finish Call & Submit'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* State: PROCESSING */}
+        {callStatus === 'PROCESSING' && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '30px' }}>
+            <RefreshCw size={48} className="animate-spin" style={{ color: '#fbbf24' }} />
+            <h2 style={{ color: '#fff', margin: 0 }}>
+              {lang === 'Kannada' ? 'ಎಐ ತುರ್ತು ವಿಶ್ಲೇಷಣೆ ನಡೆಯುತ್ತಿದೆ...' : 'AI Analyzing Urgency & Intent (NLTK)...'}
+            </h2>
+            <p style={{ color: '#94a3b8' }}>Checking emergency lexicons, distress sentiment & volunteer skills...</p>
+          </div>
+        )}
+
+        {/* State: RESULT (Triage Verdict) */}
+        {callStatus === 'RESULT' && triageResult && (
+          <div style={{ width: '100%', maxWidth: '640px', display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left' }}>
+            
+            {/* Verdict Card */}
+            {triageResult.isEmergency ? (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(185, 28, 28, 0.3) 100%)',
+                border: '2px solid #ef4444',
+                borderRadius: '16px',
+                padding: '20px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '14px'
+              }}>
+                <ShieldAlert size={36} color="#ef4444" style={{ flexShrink: 0 }} />
+                <div>
+                  <div style={{ color: '#f87171', fontWeight: '800', fontSize: '1.2rem', textTransform: 'uppercase' }}>
+                    🚨 {lang === 'Kannada' ? 'ಕ್ರಿಟಿಕಲ್ ಎಮರ್ಜೆನ್ಸಿ — 112 ಪೊಲೀಸ್ ರವಾನಿಸಲಾಗಿದೆ' : 'CRITICAL EMERGENCY — 112 DISPATCHED'}
+                  </div>
+                  <div style={{ color: '#fca5a5', marginTop: '4px', fontSize: '0.95rem' }}>
+                    {triageResult.responseSpeech}
+                  </div>
+                  <div style={{ marginTop: '8px', fontSize: '0.85rem', color: '#fecaca' }}>
+                    Station: <strong>Shirva Police QRT</strong> • Priority: <strong>P0 IMMEDIATE</strong>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(21, 128, 61, 0.3) 100%)',
+                border: '2px solid #22c55e',
+                borderRadius: '16px',
+                padding: '20px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '14px'
+              }}>
+                <CheckCircle2 size={36} color="#22c55e" style={{ flexShrink: 0 }} />
+                <div>
+                  <div style={{ color: '#4ade80', fontWeight: '800', fontSize: '1.2rem', textTransform: 'uppercase' }}>
+                    🤝 {lang === 'Kannada' ? 'ಸ್ವಯಂಸೇವಕರಿಗೆ ನಿಯೋಜಿಸಲಾಗಿದೆ' : 'COMMUNITY VOLUNTEER ASSIGNED'}
+                  </div>
+                  <div style={{ color: '#bbf7d0', marginTop: '4px', fontSize: '0.95rem' }}>
+                    {triageResult.responseSpeech}
+                  </div>
+                  <div style={{ marginTop: '8px', fontSize: '0.85rem', color: '#dcfce7' }}>
+                    Category: <strong>{triageResult.category}</strong> • Status: <strong>{triageResult.matchedVolunteer ? `Assigned to ${triageResult.matchedVolunteer.name}` : 'Broadcasted'}</strong>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Transcript recap */}
+            <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px 16px', borderRadius: '12px', fontSize: '0.9rem', color: '#cbd5e1' }}>
+              <strong>Caller said:</strong> "{transcript}"
+            </div>
+
+            {/* New Call Button */}
+            <button
+              onClick={() => { setCallStatus('IDLE'); setTranscript(''); setTriageResult(null); }}
+              style={{
+                background: '#fbbf24',
+                color: '#0f172a',
+                border: 'none',
+                padding: '12px',
+                borderRadius: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                textAlign: 'center',
+                marginTop: '8px'
+              }}
+            >
+              🔄 {lang === 'Kannada' ? 'ಮತ್ತೊಂದು ಕರೆ ಮಾಡಿ' : 'Start Another Call'}
+            </button>
+          </div>
+        )}
+
+      </div>
+
+      {/* 3. Quick One-Tap Scenarios (KISS Test Chips) */}
+      <div style={{
+        background: 'rgba(15, 23, 42, 0.6)',
+        borderRadius: '16px',
+        padding: '20px',
+        border: '1px solid rgba(255, 255, 255, 0.08)'
+      }}>
+        <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fbbf24', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span>⚡ {lang === 'Kannada' ? 'ತ್ವರಿತ ಪರೀಕ್ಷಾ ಸನ್ನಿವೇಶಗಳು (ಒಂದು ಕ್ಲಿಕ್‌ನಲ್ಲಿ ಮಾತನಾಡಿ):' : 'Quick Test Scenarios (1-Click Speak):'}</span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px' }}>
+          {PRESETS.map((p) => (
+            <div
+              key={p.id}
+              onClick={() => handleSelectPreset(p)}
+              style={{
+                background: p.type === 'EMERGENCY' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+                border: p.type === 'EMERGENCY' ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '12px',
+                padding: '14px',
+                cursor: 'pointer',
+                transition: 'transform 0.15s, border-color 0.15s'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = '#fbbf24'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = p.type === 'EMERGENCY' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255, 255, 255, 0.1)'; }}
+            >
+              <div style={{ fontWeight: '700', color: p.type === 'EMERGENCY' ? '#f87171' : '#f8fafc', fontSize: '0.95rem', marginBottom: '6px' }}>
+                {lang === 'Kannada' ? p.titleKn : p.title}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#94a3b8', lineHeight: '1.4' }}>
+                "{lang === 'Kannada' ? p.kannada : p.english}"
+              </div>
+            </div>
+          ))}
         </div>
       </div>
+
     </div>
   );
 }

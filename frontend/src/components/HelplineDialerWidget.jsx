@@ -72,6 +72,32 @@ export default function HelplineDialerWidget({ helpline, onCallTriggered }) {
     }
   };
 
+  const [isCallingMobile, setIsCallingMobile] = useState(false);
+
+  const handleCallMyPhone = async () => {
+    setIsCallingMobile(true);
+    try {
+      const res = await fetch('http://localhost:5000/api/calls/call-my-phone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: '+919945594198',
+          seniorName: seniorName || 'Senior Resident (Shirva)'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('📞 Calling your Indian mobile (+91 99455 94198) now! Pick up to hear the Shirva Police Helpline in Kannada & English.');
+      } else {
+        alert('Call error: ' + (data.error || 'Failed to place call'));
+      }
+    } catch (err) {
+      alert('Error triggering phone call: ' + err.message);
+    } finally {
+      setIsCallingMobile(false);
+    }
+  };
+
   const handleCopyNumber = () => {
     navigator.clipboard.writeText(helpline?.primaryNumber || '+91 80 4725 0112');
     setCopied(true);
@@ -133,14 +159,35 @@ export default function HelplineDialerWidget({ helpline, onCallTriggered }) {
           </div>
         </div>
 
-        {/* Right Action: Simulate Caller */}
+        {/* Right Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            onClick={handleCallMyPhone}
+            disabled={isCallingMobile}
+            style={{
+              background: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
+              color: '#fff',
+              border: '1px solid rgba(16, 185, 129, 0.4)',
+              padding: '8px 16px',
+              fontSize: '0.85rem',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontWeight: '600',
+              boxShadow: '0 2px 10px rgba(16, 185, 129, 0.3)'
+            }}
+          >
+            <PhoneCall size={15} /> {isCallingMobile ? 'Calling Your Phone...' : '📞 Call My Mobile (+91 99455 94198)'}
+          </button>
+
           <button
             onClick={() => setIsOpen(!isOpen)}
             className="btn-police-gold"
             style={{ padding: '8px 16px', fontSize: '0.85rem' }}
           >
-            <Phone size={15} /> Simulate Senior Dialing In {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            <Phone size={15} /> Web Simulator {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
         </div>
       </div>

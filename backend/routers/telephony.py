@@ -50,6 +50,7 @@ from database import (
     DB_PATH, EMERGENCY_KEYWORDS,
 )
 import aiosqlite
+from utils import broadcast as _broadcast_util
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 TWILIO_ACCOUNT_SID   = os.getenv("TWILIO_ACCOUNT_SID", "")
@@ -81,14 +82,14 @@ def _twilio_client() -> "TwilioClient | None":
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    """Thin alias kept for local readability; delegates to utils._now."""
+    from utils import _now as _u_now
+    return _u_now()
 
 
 async def _broadcast(app, event: str, data: dict):
-    import json
-    msg = {"event": event, "data": json.dumps(data)}
-    for q in list(app.state.sse_clients):
-        await q.put(msg)
+    """Fan-out SSE event using non-blocking put_nowait via utils.broadcast."""
+    await _broadcast_util(app, event, data)
 
 
 def _validate_twilio_request(request: Request, body: dict) -> bool:

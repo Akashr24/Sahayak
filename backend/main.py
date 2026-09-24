@@ -23,6 +23,9 @@ load_dotenv(Path(__file__).parent / ".env")
 from database import init_db, SHIRVA_LOCATIONS
 from routers import health, location, calls, requests, volunteers, seniors
 from routers import telephony
+from routers import language
+from routers import exotel
+from routers import pipeline  # Call processing pipeline (STT -> NLP -> Dispatch)
 
 
 #  Helpline configuration 
@@ -100,7 +103,10 @@ app.include_router(calls.router,       tags=["Calls & Voice"])
 app.include_router(requests.router,    tags=["Requests"])
 app.include_router(volunteers.router,  tags=["Volunteers"])
 app.include_router(seniors.router,     tags=["Senior Citizens"])
+app.include_router(language.router)   # Multi-language support
 app.include_router(telephony.router)   # Real-world Twilio telephony
+app.include_router(exotel.router)      # Exotel India Cloud Telephony (+91 / 080)
+app.include_router(pipeline.router)   # Call pipeline: STT -> NLP -> DISPATCH (112 / Volunteer)
 
 # Serve pyttsx3-synthesised TTS WAVs so Twilio's <Play> can fetch them
 _TTS_AUDIO_DIR = Path("/tmp/tts_audio") if os.environ.get("VERCEL") else Path(__file__).parent / "tts_audio"

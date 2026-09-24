@@ -211,6 +211,16 @@ INSERT OR IGNORE INTO audit_logs (id, timestamp, action, actor, details, targetE
  'Voice call received from Saraswathi Amma. Categorized as Medicines (High Priority).', 'REQ-2026-089'),
 ('log-5', '2026-09-15T10:38:00Z', 'VOLUNTEER_ASSIGNED', 'Dispatcher Engine',
  'Assigned Ramesh Acharya (Lions Club) to REQ-2026-089.', 'REQ-2026-089');
+
+-- Indexes for common filter/sort patterns
+CREATE INDEX IF NOT EXISTS idx_volunteers_status   ON volunteers (verificationStatus);
+CREATE INDEX IF NOT EXISTS idx_volunteers_available ON volunteers (isAvailable);
+CREATE INDEX IF NOT EXISTS idx_requests_status     ON requests (status);
+CREATE INDEX IF NOT EXISTS idx_requests_urgency    ON requests (urgency);
+CREATE INDEX IF NOT EXISTS idx_requests_created    ON requests (createdAt DESC);
+CREATE INDEX IF NOT EXISTS idx_seniors_language    ON senior_citizens (preferredLanguage);
+CREATE INDEX IF NOT EXISTS idx_audit_action        ON audit_logs (action);
+CREATE INDEX IF NOT EXISTS idx_audit_timestamp     ON audit_logs (timestamp DESC);
 """
 
 
@@ -424,7 +434,7 @@ async def add_senior_citizen(db: aiosqlite.Connection, sc: dict) -> dict:
 
 
 async def add_request(db: aiosqlite.Connection, r: dict) -> dict:
-    rid = r.get("id") or f"REQ-{datetime.now().year}-{random.randint(100, 999)}"
+    rid = r.get("id") or f"REQ-{datetime.now().year}-{uuid.uuid4().hex[:4].upper()}"
     await db.execute(
         """INSERT INTO requests
            (id, seniorName, seniorPhone, location, language, category, urgency,
@@ -498,7 +508,7 @@ async def add_emergency_record(db: aiosqlite.Connection, er: dict) -> None:
 
 
 async def log_audit(db: aiosqlite.Connection, action: str, details: str, actor: str = "System") -> dict:
-    lid = f"log-{int(datetime.now().timestamp() * 1000)}-{random.randint(0, 999)}"
+    lid = f"log-{uuid.uuid4().hex[:12]}"
     ts = _now()
     await db.execute(
         "INSERT INTO audit_logs (id, timestamp, action, actor, details) VALUES (?,?,?,?,?)",
@@ -506,3 +516,84 @@ async def log_audit(db: aiosqlite.Connection, action: str, details: str, actor: 
     )
     await db.commit()
     return {"id": lid, "timestamp": ts, "action": action, "actor": actor, "details": details}
+
+
+# ─── Update helpers ───────────────────────────────────────────────────────────
+async def update_senior_citizen(db: aiosqlite.Connection, sc_id: str, fields: dict) -> Optional[dict]:
+    """Partial update — only touches columns present in `fields`."""
+    allowed = {
+        "name", "age", "phone", "address", "location",
+        "preferredLanguage", "emergencyContact", "medicalNotes", "isActive",
+    }
+    updates = {k: v for k, v in fields.items() if k in allowed}
+    if not updates:
+        return await get_senior_by_id(db, sc_id)
+    set_clause = ", ".join(f"{col} = ?" for col in updates)
+    values = list(updates.values()) + [sc_id]
+    await db.execute(f"UPDATE senior_citizens SET {set_clause} WHERE id = ?", values)
+    await db.commit()
+    return await get_senior_by_id(db, sc_id)
+
+
+async def delete_senior_citizen(db: aiosqlite.Connection, sc_id: str) -> bool:
+    """Delete senior: marks isActive=0 if active; if already inactive, deletes permanently."""
+    cur = await db.execute(
+        "UPDATE senior_citizens SET isActive = 0 WHERE id = ? AND isActive = 1", (sc_id,)
+    )
+    await db.commit()
+    if cur.rowcount > 0:
+        return True
+    # If already inactive or requesting delete, remove permanently
+    cur2 = await db.execute("DELETE FROM senior_citizens WHERE id = ?", (sc_id,))
+    await db.commit()
+    return cur2.rowcount > 0
+
+
+async def update_volunteer(db: aiosqlite.Connection, vol_id: str, fields: dict) -> Optional[dict]:
+    """Partial update for mutable volunteer profile fields."""
+    allowed = {"name", "phone", "organization", "location", "notes", "skills", "isAvailable", "verificationStatus"}
+    updates: dict = {}
+    for k, v in fields.items():
+        if k not in allowed:
+            continue
+        if k == "skills":
+            updates[k] = json.dumps(v) if isinstance(v, list) else v
+        else:
+            updates[k] = v
+    if not updates:
+        return await get_volunteer_by_id(db, vol_id)
+    set_clause = ", ".join(f"{col} = ?" for col in updates)
+    values = list(updates.values()) + [vol_id]
+    await db.execute(f"UPDATE volunteers SET {set_clause} WHERE id = ?", values)
+    await db.commit()
+    return await get_volunteer_by_id(db, vol_id)
+
+
+async def delete_volunteer(db: aiosqlite.Connection, vol_id: str) -> bool:
+    """
+    Hard-delete a volunteer record.
+    Will fail (return False) if the volunteer has active assigned requests.
+    """
+    async with db.execute(
+        "SELECT COUNT(*) FROM requests WHERE assignedVolunteerId = ? AND status IN ('ASSIGNED','IN_PROGRESS')",
+        (vol_id,),
+    ) as cur:
+        row = await cur.fetchone()
+    if row and row[0] > 0:
+        return False  # Caller must handle 409 Conflict
+    res = await db.execute("DELETE FROM volunteers WHERE id = ?", (vol_id,))
+    await db.commit()
+    return res.rowcount > 0
+
+
+async def update_request_fields(db: aiosqlite.Connection, req_id: str, fields: dict) -> Optional[dict]:
+    """Partial update for arbitrary request fields (used by PATCH endpoint)."""
+    allowed = {"category", "urgency", "description", "location", "language", "audioNotes"}
+    updates = {k: v for k, v in fields.items() if k in allowed}
+    if not updates:
+        return await get_request_by_id(db, req_id)
+    set_clause = ", ".join(f"{col} = ?" for col in updates)
+    values = list(updates.values()) + [req_id]
+    await db.execute(f"UPDATE requests SET {set_clause} WHERE id = ?", values)
+    await db.commit()
+    return await get_request_by_id(db, req_id)

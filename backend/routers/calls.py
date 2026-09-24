@@ -1,5 +1,6 @@
 """routers/calls.py — SSE stream, telephony webhook, call simulator, voice triage"""
 
+import os
 import random
 import urllib.parse
 import base64
@@ -22,12 +23,9 @@ from voice_service import (
     transcribe_audio_bytes,
     listen_from_microphone,
 )
+from utils import _now, broadcast, make_req_id, make_emg_id
 
 router = APIRouter()
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 # ─── SSE Stream ───────────────────────────────────────────────────────────────
@@ -81,7 +79,7 @@ async def trigger_incoming(request: Request):
         "speechTranscript": spoken_text, "language": language,
         "dialedNumber": app.state.helpline["primaryNumber"],
     }
-    await _broadcast(app, "INCOMING_CALL", app.state.current_call)
+    await broadcast(app, "INCOMING_CALL", app.state.current_call)
 
     async with aiosqlite.connect(DB_PATH) as db:
         await log_audit(db, "PHONE_CALL_SIMULATED",
@@ -91,13 +89,38 @@ async def trigger_incoming(request: Request):
     return {"success": True, "currentCall": app.state.current_call}
 
 
+# ─── Call history endpoint ───────────────────────────────────────────────────
+@router.get("/api/calls/history", tags=["Calls & Voice"])
+async def calls_history(
+    limit:  int = Query(50, ge=1, le=200, description="Max audit log entries to return"),
+    offset: int = Query(0,  ge=0),
+):
+    """
+    Returns recent call-related audit log entries so the dashboard can show
+    a call history timeline without a separate DB table.
+    """
+    from database import get_audit_logs
+    from utils import paginate
+
+    call_actions = {
+        "PHONE_CALL_SIMULATED", "PHONE_CALL_RECEIVED",
+        "TWILIO_CALL_RECEIVED", "TWILIO_CALL_TRIAGED",
+        "CALL_ANSWERED", "CALL_ENDED", "EMERGENCY_CALL_ESCALATED",
+        "EMERGENCY_112_ESCALATED",
+    }
+    async with aiosqlite.connect(DB_PATH) as db:
+        all_logs = await get_audit_logs(db)
+    call_logs = [log for log in all_logs if log.get("action") in call_actions]
+    return paginate(call_logs, limit, offset)
+
+
 @router.post("/api/calls/answer")
 async def answer_call(request: Request):
     app = request.app
     if app.state.current_call:
         app.state.current_call["status"] = "ANSWERED"
         app.state.current_call["answeredAt"] = _now()
-        await _broadcast(app, "CALL_ANSWERED", app.state.current_call)
+        await broadcast(app, "CALL_ANSWERED", app.state.current_call)
         async with aiosqlite.connect(DB_PATH) as db:
             await log_audit(db, "CALL_ANSWERED",
                             f"Call {app.state.current_call['callId']} answered by operator.",
@@ -111,7 +134,7 @@ async def hangup_call(request: Request):
     ended = app.state.current_call
     if ended:
         ended["status"] = "COMPLETED"
-        await _broadcast(app, "CALL_ENDED", ended)
+        await broadcast(app, "CALL_ENDED", ended)
         app.state.current_call = None
         async with aiosqlite.connect(DB_PATH) as db:
             await log_audit(db, "CALL_ENDED",
@@ -145,7 +168,7 @@ async def voice_webhook(request: Request):
         "speechTranscript": speech,
         "dialedNumber": app.state.helpline["primaryNumber"],
     }
-    await _broadcast(app, "INCOMING_CALL", app.state.current_call)
+    await broadcast(app, "INCOMING_CALL", app.state.current_call)
 
     async with aiosqlite.connect(DB_PATH) as db:
         await log_audit(db, "PHONE_CALL_RECEIVED",
@@ -193,7 +216,7 @@ async def voice_process(request: Request):
     cleaned_transcript = triage_result.get("cleanedTranscript", transcript)
 
     if is_emergency:
-        emg_id = f"EMG-112-{int(datetime.now().timestamp() * 1000) % 10000}"
+        emg_id = make_emg_id()
         emg_req = {
             "id": emg_id, "seniorName": senior_name, "seniorPhone": senior_phone,
             "location": location, "language": language,
@@ -216,6 +239,10 @@ async def voice_process(request: Request):
                             f"112 Dispatch for {senior_name} at {location}. Trigger: '{matched_trigger}' (Distress: {distress_score})."
                             + (f" [Speech Disfluency Assist: {assistive_note}]" if assistive_note else ""),
                             "NLTK Voice Safety Gate")
+
+        app = request.app
+        await broadcast(app, "EMERGENCY_ALERT", emg_req)
+        await broadcast(app, "REQUEST_CREATED", emg_req)
 
         resp_text = (
             "ಇದು ತುರ್ತು ಪರಿಸ್ಥಿತಿಯಾಗಿದೆ. ಶಿರ್ವಾ ಪೊಲೀಸ್ ಮತ್ತು 112 ತಕ್ಷಣ ಮಾಹಿತಿ ನೀಡಲಾಗಿದೆ."
@@ -259,7 +286,7 @@ async def voice_process(request: Request):
             else:
                 matched_vol = avail[0]
 
-        req_id = f"REQ-{datetime.now().year}-{random.randint(100, 999)}"
+        req_id = make_req_id()
         new_req = {
             "id": req_id, "seniorName": senior_name, "seniorPhone": senior_phone,
             "location": location, "language": language,
@@ -280,6 +307,15 @@ async def voice_process(request: Request):
                         f"NLTK Distress: {distress_score}. Assigned: {matched_vol['name'] if matched_vol else 'Broadcast'}."
                         + (f" [Speech Disfluency Assist: {assistive_note}]" if assistive_note else ""),
                         "Sahayak NLTK Voice IVR")
+
+    app = request.app
+    await broadcast(app, "REQUEST_CREATED", new_req)
+    if matched_vol:
+        await broadcast(app, "REQUEST_ASSIGNED", {
+            "requestId": req_id,
+            "assignedVolunteerId": matched_vol["id"],
+            "assignedVolunteerName": matched_vol["name"],
+        })
 
     if matched_vol:
         speech_kn = f"ನಮಸ್ಕಾರ, {matched_vol['name']} ({matched_vol['organization']}) ನಿಯೋಜಿಸಲಾಗಿದೆ."
@@ -308,15 +344,9 @@ async def voice_process(request: Request):
     }
 
 
-# ─── Internal broadcast helper ────────────────────────────────────────────────
+# ─── Internal broadcast helper (delegates to utils.broadcast) ─────────────────
 async def _broadcast(app, event: str, data: dict):
-    import json
-    msg = {"event": event, "data": json.dumps(data)}
-    for q in list(app.state.sse_clients):
-        try:
-            q.put_nowait(msg)
-        except Exception:
-            pass
+    await broadcast(app, event, data)
 
 
 # ─── pyttsx3 & speech_recognition Endpoints ───────────────────────────────────
@@ -506,3 +536,64 @@ async def process_audio_endpoint(
     triage_output["recognizedTranscript"] = transcript
     triage_output["sttEngine"] = "speech_recognition"
     return triage_output
+
+
+# ─── Trigger Outbound Call to Indian Phone (Zero ISD Required) ────────────────
+BILINGUAL_TWIML_URL = "https://paste.rs/eN7Wb"
+
+@router.post("/api/calls/call-my-phone", tags=["Calls & Voice"])
+async def trigger_call_my_phone(request: Request):
+    """
+    Places an automated call to the user's Indian mobile number (+91 99455 94198).
+    Plays the bilingual Shirva Police Helpline greeting in Kannada & English,
+    and captures the voice request. Zero ISD required for the recipient.
+    """
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+
+    to_phone = body.get("phone", "+919945594198")
+    senior_name = body.get("seniorName", "Senior Resident (Shirva)")
+
+    tw_sid = os.getenv("TWILIO_ACCOUNT_SID", "")
+    tw_token = os.getenv("TWILIO_AUTH_TOKEN", "")
+    tw_from = os.getenv("TWILIO_PHONE_NUMBER", "")
+
+    try:
+        from twilio.rest import Client
+        client = Client(tw_sid, tw_token)
+        call = client.calls.create(
+            to=to_phone,
+            from_=tw_from,
+            url=BILINGUAL_TWIML_URL
+        )
+        app = request.app
+        call_obj = {
+            "callId": call.sid,
+            "callerPhone": to_phone,
+            "seniorName": senior_name,
+            "location": "Shirva, Udupi District",
+            "status": "DIALING",
+            "startedAt": _now(),
+            "speechTranscript": "Outbound welfare & emergency intake call in progress...",
+            "dialedNumber": to_phone,
+        }
+        app.state.current_call = call_obj
+        await broadcast(app, "INCOMING_CALL", call_obj)
+
+        async with aiosqlite.connect(DB_PATH) as db:
+            await log_audit(db, "OUTBOUND_CALL_PLACED",
+                            f"Automated helpline call placed to Indian number {to_phone} ({senior_name}). SID={call.sid}",
+                            "Sahayak Telephony Gateway")
+
+        return {
+            "success": True,
+            "callSid": call.sid,
+            "status": call.status,
+            "dialed": to_phone,
+            "message": f"Calling {to_phone} now! Pick up your phone to hear the bilingual Shirva Police greeting."
+        }
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"success": False, "error": str(exc)})

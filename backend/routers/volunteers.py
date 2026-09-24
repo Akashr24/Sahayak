@@ -2,17 +2,18 @@
 
 import time
 import random
-from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
 import aiosqlite
 
 from database import (
     get_volunteers, get_volunteer_by_id, add_volunteer,
+    update_volunteer, delete_volunteer,
     update_volunteer_verification, update_volunteer_availability,
     log_audit, DB_PATH,
 )
+from utils import _now, broadcast, paginate
 
 router = APIRouter()
 
@@ -20,18 +21,23 @@ router = APIRouter()
 _otp_cache: dict[str, dict] = {}
 
 
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-
-
-# ─── Volunteer list & detail ───────────────────────────────────────────────────
-@router.get("/api/volunteers")
-async def list_volunteers(status: Optional[str] = Query(None)):
+# ─── Volunteer list (paginated) ───────────────────────────────────────────────
+@router.get("/api/volunteers", tags=["Volunteers"])
+async def list_volunteers(
+    status:   Optional[str]  = Query(None, description="Filter by verificationStatus"),
+    available: Optional[bool] = Query(None, description="Filter by isAvailable"),
+    limit:    Optional[int]  = Query(None, ge=1, le=500),
+    offset:   Optional[int]  = Query(0,    ge=0),
+):
     async with aiosqlite.connect(DB_PATH) as db:
-        return await get_volunteers(db, status=status)
+        vols = await get_volunteers(db, status=status)
+    if available is not None:
+        vols = [v for v in vols if v["isAvailable"] == available]
+    return paginate(vols, limit, offset)
 
 
-@router.get("/api/volunteers/{vol_id}")
+# ─── Get single volunteer ─────────────────────────────────────────────────────
+@router.get("/api/volunteers/{vol_id}", tags=["Volunteers"])
 async def get_volunteer(vol_id: str):
     async with aiosqlite.connect(DB_PATH) as db:
         v = await get_volunteer_by_id(db, vol_id)
@@ -41,16 +47,14 @@ async def get_volunteer(vol_id: str):
 
 
 # ─── Register new volunteer ────────────────────────────────────────────────────
-from fastapi import Request as _Req
-
-
-@router.post("/api/volunteers", status_code=201)
-async def register_volunteer(request: _Req):
+@router.post("/api/volunteers", status_code=201, tags=["Volunteers"])
+async def register_volunteer(request: Request):
     body = await request.json()
-    name  = body.get("name")
-    phone = body.get("phone")
+    name  = (body.get("name") or "").strip()
+    phone = (body.get("phone") or "").strip()
     if not name or not phone:
-        return JSONResponse(status_code=400, content={"error": "Name and Phone required"})
+        return JSONResponse(status_code=400, content={"error": "Name and phone are required."})
+
     new_vol = {
         "name": name, "phone": phone,
         "organization": body.get("organization", "Citizen Volunteer"),
@@ -64,16 +68,59 @@ async def register_volunteer(request: _Req):
         await log_audit(db, "VOLUNTEER_REGISTERED",
                         f"New volunteer: {name} ({new_vol['organization']}, {phone}). Pending clearance.",
                         "Volunteer Portal")
+
+    await broadcast(request.app, "VOLUNTEER_REGISTERED", created)
     return created
 
 
+# ─── Update volunteer profile (partial) ───────────────────────────────────────
+@router.put("/api/volunteers/{vol_id}", tags=["Volunteers"])
+@router.patch("/api/volunteers/{vol_id}", tags=["Volunteers"])
+async def update_volunteer_profile(vol_id: str, request: Request):
+    async with aiosqlite.connect(DB_PATH) as db:
+        v = await get_volunteer_by_id(db, vol_id)
+        if not v:
+            return JSONResponse(status_code=404, content={"error": "Volunteer not found"})
+
+        body = await request.json()
+        actor = body.pop("_actor", v["name"])
+        updated = await update_volunteer(db, vol_id, body)
+        await log_audit(db, "VOLUNTEER_PROFILE_UPDATED",
+                        f"Volunteer {v['name']} ({vol_id}) profile updated by {actor}.",
+                        actor)
+
+    await broadcast(request.app, "VOLUNTEER_UPDATED", updated)
+    return updated
+
+
+# ─── Delete volunteer ──────────────────────────────────────────────────────────
+@router.delete("/api/volunteers/{vol_id}", tags=["Volunteers"])
+async def remove_volunteer(vol_id: str, request: Request):
+    actor = (request.query_params.get("actor") or "Police Administrator").strip()
+    async with aiosqlite.connect(DB_PATH) as db:
+        v = await get_volunteer_by_id(db, vol_id)
+        if not v:
+            return JSONResponse(status_code=404, content={"error": "Volunteer not found"})
+        ok = await delete_volunteer(db, vol_id)
+        if not ok:
+            return JSONResponse(status_code=409, content={
+                "error": "Cannot delete volunteer with active assigned requests. Reassign or resolve them first."
+            })
+        await log_audit(db, "VOLUNTEER_DELETED",
+                        f"Volunteer {v['name']} ({vol_id}) removed by {actor}.",
+                        actor)
+
+    await broadcast(request.app, "VOLUNTEER_DELETED", {"id": vol_id})
+    return {"success": True, "message": f"Volunteer {vol_id} removed.", "id": vol_id}
+
+
 # ─── Verify / Reject ──────────────────────────────────────────────────────────
-@router.put("/api/volunteers/{vol_id}/verify")
-async def verify_volunteer(vol_id: str, request: _Req):
+@router.put("/api/volunteers/{vol_id}/verify", tags=["Volunteers"])
+async def verify_volunteer(vol_id: str, request: Request):
     body = await request.json()
-    action      = body.get("action")
-    officer     = body.get("officerName", "PSI Shirva Police Station")
-    notes       = body.get("notes", "")
+    action  = body.get("action")
+    officer = body.get("officerName", "PSI Shirva Police Station")
+    notes   = body.get("notes", "")
 
     async with aiosqlite.connect(DB_PATH) as db:
         v = await get_volunteer_by_id(db, vol_id)
@@ -98,15 +145,17 @@ async def verify_volunteer(vol_id: str, request: _Req):
                             f"{v['name']} rejected by {officer}.",
                             "Shirva Police Administrator")
         else:
-            return JSONResponse(status_code=400, content={"error": "Invalid action."})
+            return JSONResponse(status_code=400, content={"error": "Invalid action. Use APPROVE or REJECT."})
 
         updated = await get_volunteer_by_id(db, vol_id)
+
+    await broadcast(request.app, "VOLUNTEER_VERIFIED", updated)
     return updated
 
 
 # ─── Availability toggle ──────────────────────────────────────────────────────
-@router.put("/api/volunteers/{vol_id}/availability")
-async def toggle_availability(vol_id: str, request: _Req):
+@router.put("/api/volunteers/{vol_id}/availability", tags=["Volunteers"])
+async def toggle_availability(vol_id: str, request: Request):
     body = await request.json()
     is_available = bool(body.get("isAvailable"))
     actor = body.get("actor")
@@ -124,12 +173,14 @@ async def toggle_availability(vol_id: str, request: _Req):
                         f"{'AVAILABLE' if is_available else 'UNAVAILABLE'}.",
                         actor or v["name"])
         updated = await get_volunteer_by_id(db, vol_id)
+
+    await broadcast(request.app, "VOLUNTEER_AVAILABILITY", updated)
     return updated
 
 
 # ─── Badge / Phone login ──────────────────────────────────────────────────────
-@router.post("/api/volunteers/login")
-async def volunteer_login(request: _Req):
+@router.post("/api/volunteers/login", tags=["Volunteers"])
+async def volunteer_login(request: Request):
     body = await request.json()
     raw = (body.get("identifier") or body.get("phone") or body.get("badgeNo") or "").strip()
     if not raw:
@@ -170,8 +221,8 @@ async def volunteer_login(request: _Req):
 
 
 # ─── Request OTP ──────────────────────────────────────────────────────────────
-@router.post("/api/volunteers/request-otp")
-async def request_otp(request: _Req):
+@router.post("/api/volunteers/request-otp", tags=["Volunteers"])
+async def request_otp(request: Request):
     body = await request.json()
     phone = (body.get("phone") or "").strip()
     if not phone:
@@ -206,8 +257,8 @@ async def request_otp(request: _Req):
 
 
 # ─── Verify OTP ───────────────────────────────────────────────────────────────
-@router.post("/api/volunteers/verify-otp")
-async def verify_otp(request: _Req):
+@router.post("/api/volunteers/verify-otp", tags=["Volunteers"])
+async def verify_otp(request: Request):
     body = await request.json()
     phone = (body.get("phone") or "").strip()
     otp   = str(body.get("otp") or "").strip()

@@ -1,4 +1,4 @@
-﻿"""
+"""
 maps.py — Sahayak Geocoding & Routing helpers (Python/httpx)
 Equivalent of the former maps.js
 

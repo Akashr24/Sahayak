@@ -575,3 +575,74 @@ h1, h2, h3, h4, .font-heading {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+
+/* ── Animations ─────────────────────────────────────────────────────────────── */
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ── Multilingual font support ──────────────────────────────────────────────── */
+:lang(kn), [lang="kn"] {
+  font-family: 'Noto Sans Kannada', 'Outfit', sans-serif;
+  line-height: 1.6;
+}
+:lang(hi), [lang="hi"] {
+  font-family: 'Noto Sans Devanagari', 'Outfit', sans-serif;
+  line-height: 1.6;
+}
+:lang(ta), [lang="ta"] {
+  font-family: 'Noto Sans Tamil', 'Outfit', sans-serif;
+  line-height: 1.65;
+}
+:lang(te), [lang="te"] {
+  font-family: 'Noto Sans Telugu', 'Outfit', sans-serif;
+  line-height: 1.65;
+}
+
+/* ── Responsive mobile nav ──────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  nav.liquid-glass {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px !important;
+  }
+  nav .liquid-glass-btn {
+    font-size: 0.78rem !important;
+    padding: 7px 11px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  header .liquid-glass-btn span:not(.badge-verified) {
+    display: none;
+  }
+}
